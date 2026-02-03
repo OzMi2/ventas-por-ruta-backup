@@ -1,0 +1,87 @@
+MODIFICA EL PROYECTO EXISTENTE. NO LO REHAGAS DESDE CERO.
+
+Objetivo: Extender el frontend React + Vite (solo frontend, sin backend) para soportar DESCUENTOS por CLIENTE y por VOLUMEN, con descuento FIJO en MONEDA (ej. $1, $2), NO porcentajes.
+
+REGLAS OBLIGATORIAS:
+- PROHIBIDO generar backend o BD: no crear PHP, SQL, MySQL, endpoints, servidores, autenticación del lado servidor.
+- Mantener la estructura actual del proyecto: src/pages, src/components, src/services, src/store.
+- Mantener la configuración de API: VITE_API_BASE_URL + pantalla “Configuración” que guarda la URL en localStorage.
+- Centralizar todas las llamadas en src/services/api.js con un request() estándar y headers:
+  - Si hay token: Authorization: Bearer <token>
+  - Manejo estándar de errores.
+- Solo agregar UI + estado + llamadas a API (cliente).
+
+REGLAS DE NEGOCIO DE DESCUENTOS:
+- El descuento es un monto fijo por unidad cobrada (moneda), ejemplo: $1 menos por kg o $2 menos por pieza.
+- El descuento depende de:
+  1) Cliente (identificado por su NOMBRE, por ejemplo "Tienda Lupita")
+  2) Producto
+  3) Modo de venta (PIEZA / KG / MIXTO)
+  4) Volumen (por escalones/tier por mínimo de cantidad)
+- Flujo para crear/aplicar descuento:
+  Seleccionar CLIENTE -> seleccionar PRODUCTO -> definir MODO -> definir ESCALONES (mínimo y descuento).
+
+Modos de venta:
+A) PIEZA: se cobra por piezas.
+B1) KG: se cobra por kg.
+B2) MIXTO (kg + piezas): se cobra por kg (el descuento se aplica al kg), y las piezas solo afectan inventario.
+
+CÁLCULO DEL DESCUENTO EN EL CARRITO/TICKET:
+- Determinar cantidad cobrada (chargedQty):
+  - PIEZA: chargedQty = piezas
+  - KG: chargedQty = kg
+  - MIXTO: chargedQty = kg
+- Elegir el escalón con mayor minQty que cumpla chargedQty >= minQty.
+- unitDiscount = descuento del escalón (monto fijo en moneda).
+- precioUnitarioConDescuento = max(precioUnitarioBase - unitDiscount, 0)
+- descuentoLinea = unitDiscount * chargedQty
+- totalLinea = precioUnitarioConDescuento * chargedQty
+
+REQUERIMIENTOS DE UI:
+- Módulo SOLO para admin: “Descuentos”
+  - Listado de descuentos con filtros por cliente y producto
+  - Crear/Editar descuento:
+    - Selector de Cliente (por nombre)
+    - Selector de Producto
+    - Selector de Modo (PIEZA / KG / MIXTO)
+    - Editor de escalones: lista de {minQty, discountAmount}
+      - minQty: mínimo de piezas o kg (en MIXTO se usa kg)
+      - discountAmount: monto fijo en moneda por unidad cobrada
+    - Campo activo (true/false)
+  - Eliminar lógico: si no hay delete, usar active=false
+
+INTEGRACIÓN CON LA VENTA:
+- Cuando el vendedor seleccione un cliente y agregue productos al carrito:
+  - consultar descuentos aplicables para ese cliente
+  - aplicar automáticamente el descuento correcto por producto/volumen
+- Mostrar en carrito y resumen:
+  - subtotal base
+  - total descuentos
+  - total final
+  - por línea: precio base, descuento por unidad, precio con descuento, total de la línea
+
+SERVICIOS (solo cliente):
+- Crear src/services/discounts.js usando api.request()
+- Asumir que la API existirá (NO implementarla):
+  GET /clients (cliente con name)
+  GET /products
+  GET /discounts?clientName=...
+  GET /discounts?clientName=...&productId=...
+  POST /discounts
+  PUT /discounts/:id
+  (opcional) PATCH /discounts/:id para active
+
+IMPORTANTE:
+- No romper login/roles existentes (solo UI).
+- No cambiar el backend (no existe aquí).
+- Implementar manejo de errores y validaciones en formularios.
+
+demás, crea un archivo de documentación en el proyecto:
+- docs/api-contract.md
+
+Debe contener:
+1) Estructura JSON exacta de DiscountRule y tiers.
+2) Lista de endpoints requeridos (método + ruta + query params).
+3) Ejemplos de request/response para GET /discounts, POST /discounts, PUT /discounts/:id.
+4) Reglas de cálculo por modo PIEZA/KG/MIXED y cómo elegir tiers.
+5) Notas para BD: tablas/colecciones sugeridas y campos mínimos (sin SQL).

@@ -1,0 +1,40 @@
+"id","username","password","nombre","rol","ruta_id","activo"
+1,"R1","$2b$10$w0x30mOmthuqBPqlZuoBpuZlrMuHh5RNWJBE9Hhn5qYDWDr4Mg7l6","Juan","vendedor",1,True
+2,"R2","$2b$10$z4xeHXKEQkd50Ept6s5pXOmVknBd.BPkcw1/VDIu9ewDIQRjbBavO","Juan","vendedor",2,True
+3,"R3","$2b$10$def7qSefuKYe7xfEv9DIyeBGDyaf9p3sVRuddRS9YLDuP0mCDIcna","Juan","vendedor",3,True
+4,"R4","$2b$10$pkAqcvLRSte6Ldkpas3qLO81Qxyz0v6C9wOIp9kx8ABD3kNiyKLa6","Juan","vendedor",4,True
+5,"R5","$2b$10$gjglFlGgRHB6n5FZYVktMeTLRjiF7UkOT6bCBKC0uUU1bQWCIfVTa","Juan","vendedor",5,True
+6,"R6","$2b$10$u9iOl1RtssRyds27rozNfOD7DkqMJWjAeBsyxrKaRWIWkDvARi43W","Juan","vendedor",6,True
+7,"R7","$2b$10$eOzpKkTw.gVWf2vmrK5AaOV3eBtIQqZ6aacyZtCm5kXq6cDMe.j7u","Juan","vendedor",7,True
+8,"R8","$2b$10$KEMk1tifBIgygB/yZwVTH.ZWzlsC2CPkXqNO3mx.Mb/1nwdyQJ3.q","Juan","vendedor",8,True
+9,"R9","$2b$10$BXS/hIeRjUi8QbD88K.5m.olmuL/mIatLQWRfwM8dt.9eRCrDjc7K","Juan","vendedor",9,True
+10,"R10","$2b$10$wCjUBDjSfuBVKu.QIqdVHOQU2aQ/w1lgULf8URrUo75DxLQaPh82a","Juan","vendedor",10,True
+11,"R11","$2b$10$wUdq6jDLcEWx6qo87jpVYuu1YNl4gh2vEEg/OulITm5Vp7qV4GRka","Juan","vendedor",11,True
+12,"R12","$2b$10$PV2EYE46FmKKb8b2BYR.DegdoCEUKevwWyVGN4Iy4PFXpHQLhTLZ6","Juan","vendedor",12,True
+13,"R13","$2b$10$ANlCBjohpEFF/n2N1Rewxer4FUFd2QyEd0d.58NCAZJ88keaS1S2W","Juan","vendedor",13,True
+14,"R14","$2b$10$xi9umtvuNR1THaFgHOa2dOumzcHu7dWjPa2Z67cS6u8rGn/iqxmvq","Juan","vendedor",14,True
+15,"R15","$2b$10$rTnqcOWOhz.Ld1L7cc0OMuem5YPYZBLXpHhPMJJr..AE.rFInqAKu","Juan","vendedor",15,True
+16,"R16","$2b$10$WrBewdtFFqhYwGULLS2gb.jS.v2yB9oGikI.iqHmmbfUT6ejmF2ZC","Juan","vendedor",16,True
+17,"R17","$2b$10$orRCsWCAEmqU7sqCYYT1t.6/mIB22.b5jxVPBWqpAxY.a916/2fw6","Juan","vendedor",17,True
+18,"R18","$2b$10$j0VWrfdaXXbta8FHIiRuZ.zQlJpM6jreezYgQp4UyhvqMx5jc06DW","Juan","vendedor",18,True
+19,"R19","$2b$10$euDVj9OJnRvwkgdGm86y9OMM/lYyYzG0G7/Qetb14Lg4Aa6Cr2lnC","Juan","vendedor",19,True
+20,"R20","$2b$10$v1NpYKUIpni763SwKpUWUexoV5OF.mU9bHJeXBl.5hi4oSHVX3gjS","Juan","vendedor",20,True
+21,"R21","$2b$10$slMPMyv.TB6y6.IhYQZmBOsG7fk.GvQK07uvs0AhHFwrGuv9P4rsy","Juan","vendedor",21,True
+22,"R22","$2b$10$miem17G.Jobpt9iJkJcHpeswpDngF4CC8oOolYgTah4V0tuHaRAJa","Juan","vendedor",22,True
+23,"R23","$2b$10$1hnWx/4mmL3lQahdByFAKuUgVuXMSUeYPGxpm2hBJF.ykXdjI6F42","Juan","vendedor",23,True
+24,"R24","$2b$10$5muByhLf8h.Ym8QC3/j60OtE7Ik9aq7w77baHkXZlMHLnjRVUHtYO","Juan","vendedor",24,True
+25,"R25","$2b$10$6vF18nF7OjoUuM91LzrrZOV.Yrd3PryBtepMLaQFoDUrgGsBraqgW","Juan","vendedor",25,True
+26,"R26","$2b$10$n62yebPyAlx1gNnt9/mfV.NigFnC6WwA7dsfHJpgIhMlwe6pKWByO","Juan","vendedor",26,True
+27,"R27","$2b$10$gHlRcIdtBTr9uTAB1zfrqOCQcmFhd9UXEWmRPxC6S/0cBmUYkLQfm","Juan","vendedor",27,True
+28,"R28","$2b$10$mUbs7lWR6HWT0BrkebIa9uxyhi4jhiyX/K9fgFBhQ77sENfl.DS2m","Juan","vendedor",28,True
+29,"R29","$2b$10$RKT0eQn4I3q.oiNlSIcKouJdi1rEG7.qa.LU4VwGdrNwSr3JBmCwO","Juan","vendedor",29,True
+30,"R30","$2b$10$ezHoSmxuYK0nzCjn8kCA9u42KUDazpjWcD0YDYVLZVnIQE/U55kfG","Juan","vendedor",30,True
+31,"R31","$2b$10$sp14lOs9NAVLXgzj/c/pSu5sBpRL3gt4CX97QfprqW5ZtdMiRZNYO","Juan","vendedor",31,True
+32,"R32","$2b$10$S7.YZTfJ1Z5PoYwJb5assexrhEPAG1IxalUVWpTaXeIwKJu2KpOXm","Juan","vendedor",32,True
+33,"R33","$2b$10$tNqZRrLS2OpPum9yoT4BB.3PDj3Tx1h58zgyHGN6euAW58BMSYJHC","Juan","vendedor",33,True
+34,"R34","$2b$10$7QjrEbOyPkhOyW/ezW8QH.pr2UbqSXBCapJTBrvLuOkkaL8yi5Fxq","Juan","vendedor",34,True
+35,"R35","$2b$10$FWfYVNOcNXoySQDh1OXcu.dqupBqmj5qB8cXSbkzsxLnEpULPqrzO","Juan","vendedor",35,True
+36,"admin","$2b$10$AKGIw.dlAoOSJ1W3nYJA2O9v7BanrfFMhZy2njKf2foAomeRqrwau","Administrador","admin",NULL,True
+37,"auditor","$2b$10$AKGIw.dlAoOSJ1W3nYJA2O9v7BanrfFMhZy2njKf2foAomeRqrwau","Auditor General","auditor",NULL,True
+38,"vendedor1","$2b$10$AKGIw.dlAoOSJ1W3nYJA2O9v7BanrfFMhZy2njKf2foAomeRqrwau","Juan Pérez","vendedor",1,True
+39,"vendedor2","$2b$10$AKGIw.dlAoOSJ1W3nYJA2O9v7BanrfFMhZy2njKf2foAomeRqrwau","María García","vendedor",2,True

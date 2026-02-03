@@ -1,0 +1,104 @@
+npm error path /app
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c NODE_ENV=production node dist/index.cjs
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-02-03T08_34_07_041Z-debug-0.log
+Login error: AggregateError [ECONNREFUSED]: 
+    at /app/dist/index.cjs:59:14227
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/index.cjs:67:32519
+    at async kf.getUsuarioByUsername (/app/dist/index.cjs:67:107017)
+    at async /app/dist/index.cjs:75:14170 {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:5432
+        at createConnectionError (node:net:1652:14)
+        at afterConnectMultiple (node:net:1682:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:5432
+        at createConnectionError (node:net:1652:14)
+        at afterConnectMultiple (node:net:1682:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 5432
+    }
+  ]
+}
+8:47:32 AM [express] POST /api/auth/login 500 in 12ms :: {"error":"Error en login"}
+Login error: AggregateError [ECONNREFUSED]: 
+    at /app/dist/index.cjs:59:14227
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/index.cjs:67:32519
+    at async kf.getUsuarioByUsername (/app/dist/index.cjs:67:107017)
+    at async /app/dist/index.cjs:75:14170 {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:5432
+        at createConnectionError (node:net:1652:14)
+        at afterConnectMultiple (node:net:1682:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:5432
+        at createConnectionError (node:net:1652:14)
+        at afterConnectMultiple (node:net:1682:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 5432
+    }
+  ]
+}
+8:47:36 AM [express] POST /api/auth/login 500 in 2ms :: {"error":"Error en login"}
+Login error: AggregateError [ECONNREFUSED]: 
+    at /app/dist/index.cjs:59:14227
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/index.cjs:67:32519
+    at async kf.getUsuarioByUsername (/app/dist/index.cjs:67:107017)
+    at async /app/dist/index.cjs:75:14170 {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:5432
+        at createConnectionError (node:net:1652:14)
+        at afterConnectMultiple (node:net:1682:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:5432
+        at createConnectionError (node:net:1652:14)
+        at afterConnectMultiple (node:net:1682:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 5432
+    }
+  ]
+}
+8:47:54 AM [express] POST /api/auth/login 500 in 2ms :: {"error":"Error en login"}
+      address: '127.0.0.1',
+      port: 5432
+    }
+  ]
+Login error: AggregateError [ECONNREFUSED]: 
+    at /app/dist/index.cjs:59:14227
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/index.cjs:67:32519
+    at async kf.getUsuarioByUsername (/app/dist/index.cjs:67:107017)
+    at async /app/dist/index.cjs:75:14170 {
+  code: 'ECONNREFUSED',
+  [errors]: [

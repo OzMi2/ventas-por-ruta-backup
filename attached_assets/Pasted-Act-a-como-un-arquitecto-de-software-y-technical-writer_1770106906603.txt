@@ -1,0 +1,88 @@
+Actúa como un arquitecto de software y technical writer senior.
+
+Necesito que generes la DOCUMENTACIÓN COMPLETA del proyecto actual, de forma clara, profesional y estructurada, orientada a desarrolladores y despliegue en producción.
+
+La documentación debe incluir, como mínimo, las siguientes secciones:
+
+1. 📖 Descripción General del Proyecto
+   - Propósito del sistema
+   - Problema que resuelve
+   - Tipo de aplicación (web, API, PWA, etc.)
+   - Usuarios objetivo
+
+2. 🧱 Arquitectura del Sistema
+   - Diagrama lógico de la arquitectura (explicado en texto)
+   - Separación de capas (frontend, backend, base de datos, servicios externos)
+   - Flujo general de datos
+
+3. ⚙️ Tecnologías Utilizadas
+   - Lenguajes de programación
+   - Frameworks y librerías principales
+   - Herramientas de desarrollo
+   - Versiones relevantes
+
+4. 📂 Estructura del Proyecto
+   - Árbol de carpetas
+   - Explicación de cada carpeta y archivo importante
+
+5. 🚀 Instalación y Montaje del Proyecto
+   - Requisitos previos
+   - Variables de entorno necesarias (.env)
+   - Pasos para ejecutar el proyecto en entorno local
+   - Comandos exactos para instalación y arranque
+
+6. 🌐 Configuración del Servidor
+   - Cómo funciona el servidor (puertos, middlewares, seguridad)
+   - Flujo de requests y responses
+   - Manejo de errores
+   - Autenticación y autorización (si aplica)
+
+7. 🗄️ Base de Datos
+   - Motor de base de datos utilizado
+   - Estructura y modelo de datos
+   - Tablas principales y sus relaciones
+   - Cómo se conecta el backend a la base de datos
+   - Ejemplos de consultas o uso del ORM/SQL
+
+8. 🔑 Variables de Entorno
+   - Lista de variables requeridas
+   - Ejemplo de archivo `.env`
+   - Explicación de cada variable
+
+9. 🌍 Conexión a Dominio y Despliegue
+   - Pasos para desplegar el proyecto en producción
+   - Cómo configurar un dominio personalizado
+   - Configuración de DNS
+   - HTTPS / SSL
+   - Recomendaciones para Cloudflare, AWS, Vercel, etc. (si aplica)
+
+10. 📡 API / Funciones Principales
+    - Endpoints disponibles
+    - Métodos HTTP
+    - Parámetros
+    - Ejemplos de request y response
+    - Lógica principal de cada función importante
+
+11. 🧪 Pruebas y Verificación
+    - Cómo probar el proyecto
+    - Endpoints de health check
+    - Casos básicos de prueba
+
+12. 📦 Repositorios y Versionamiento
+    - Estructura del repositorio
+    - Convención de commits
+    - Branches (main, develop, etc.)
+
+13. 🔒 Seguridad y Buenas Prácticas
+    - Manejo de credenciales
+    - Protección de rutas
+    - Recomendaciones de seguridad
+
+14. 📄 Notas Finales
+    - Posibles mejoras
+    - Escalabilidad
+    - Mantenimiento
+
+Usa Markdown para el formato.
+Incluye ejemplos de código cuando sea necesario.
+La documentación debe poder ser usada por cualquier desarrollador para entender, ejecutar y desplegar el proyecto sin ayuda adicional.

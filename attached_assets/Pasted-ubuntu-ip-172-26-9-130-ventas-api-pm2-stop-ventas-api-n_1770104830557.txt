@@ -1,0 +1,35 @@
+ubuntu@ip-172-26-9-130:~/ventas-api$ pm2 stop ventas-api
+node server.js &
+sleep 2
+curl -X POST http://localhost:5000/api/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"021015"}'
+[PM2] Applying action stopProcessId on app [ventas-api](ids: [ 0 ])
+[PM2] [ventas-api](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ ventas-api         │ fork     │ 1    │ stopped   │ 0%       │ 0b       │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[1] 3331
+==================================================
+  SERVIDOR VENTAS API
+  Puerto: 5000
+  Hora: 2026-02-03T07:46:49.504Z
+==================================================
+(node:3331) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Login error: Error: self-signed certificate in certificate chain
+    at /home/ubuntu/ventas-api/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async query (file:///home/ubuntu/ventas-api/server.js:71:18)
+    at async queryOne (file:///home/ubuntu/ventas-api/server.js:81:16)
+    at async file:///home/ubuntu/ventas-api/server.js:177:21 {
+  code: 'SELF_SIGNED_CERT_IN_CHAIN'
+}
+{"error":"Error en login"}2026-02-03T07:46:51.351Z POST /api/auth/login 500 30ms
