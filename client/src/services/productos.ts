@@ -3,15 +3,23 @@ import { saveBootstrapToCache, getBootstrapFromCache } from "./offlineCache";
 
 let cachedBootstrap: BootstrapResponse | null = getBootstrapFromCache();
 
+let lastRefreshTime = 0;
+const REFRESH_INTERVAL = 60000;
+
 async function ensureBootstrap(): Promise<BootstrapResponse> {
   if (cachedBootstrap) {
-    refreshBootstrapInBackground();
+    const now = Date.now();
+    if (navigator.onLine && now - lastRefreshTime > REFRESH_INTERVAL) {
+      lastRefreshTime = now;
+      refreshBootstrapInBackground();
+    }
     return cachedBootstrap;
   }
   
   try {
     cachedBootstrap = await apiClient.bootstrap();
     saveBootstrapToCache(cachedBootstrap);
+    lastRefreshTime = Date.now();
     return cachedBootstrap;
   } catch (error) {
     const offlineData = getBootstrapFromCache();
@@ -24,6 +32,8 @@ async function ensureBootstrap(): Promise<BootstrapResponse> {
 }
 
 function refreshBootstrapInBackground() {
+  if (!navigator.onLine) return;
+  
   apiClient.bootstrap().then((data) => {
     cachedBootstrap = data;
     saveBootstrapToCache(data);

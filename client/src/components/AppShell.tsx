@@ -237,10 +237,10 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
                   <span className="text-[9px] font-bold uppercase">Bodega</span>
                 </div>
               </Link>
-              <Link href="/admin/stock-rutas" data-testid="nav-bottom-stock-rutas">
-                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/admin/stock-rutas' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
-                  <PackageIcon className="h-5 w-5" />
-                  <span className="text-[9px] font-bold uppercase">Rutas</span>
+              <Link href="/auditoria/movimientos" data-testid="nav-bottom-movimientos">
+                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/auditoria/movimientos' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <ClipboardListIcon className="h-5 w-5" />
+                  <span className="text-[9px] font-bold uppercase">Movim.</span>
                 </div>
               </Link>
               <Link href="/auditoria/mover-stock" data-testid="nav-bottom-mover">
