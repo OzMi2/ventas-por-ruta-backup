@@ -19,6 +19,7 @@ import DescuentosPage from "@/pages/admin/Descuentos";
 import ProductosAdminPage from "@/pages/admin/Productos";
 import ClientesAdminPage from "@/pages/admin/Clientes";
 import RutasAdminPage from "@/pages/admin/Rutas";
+import StockRutasPage from "@/pages/admin/StockRutas";
 import HistorialPage from "@/pages/Historial";
 import MiHistorialPage from "@/pages/MiHistorial";
 import AbonosPage from "@/pages/Abonos";
@@ -104,6 +105,12 @@ function Router() {
       <Route path="/admin/rutas">
         <ProtectedRoute>
           <RutasAdminPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/stock-rutas">
+        <ProtectedRoute>
+          <StockRutasPage />
         </ProtectedRoute>
       </Route>
 

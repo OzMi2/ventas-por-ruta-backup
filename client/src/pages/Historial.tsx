@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchInput } from "@/components/SearchInput";
-import { listRutas, listClientesHistorial, type HistorialCliente, type HistorialVenta, type Ruta } from "@/services/historial";
+import { listRutas, listClientesHistorial, listTodasLasVentas, type HistorialCliente, type HistorialVenta, type Ruta } from "@/services/historial";
 import { TicketModal, ReportModal } from "@/components/TicketPrint";
-import { PrinterIcon, ChevronRightIcon, CalendarIcon, FileTextIcon } from "lucide-react";
+import { PrinterIcon, ChevronRightIcon, CalendarIcon, FileTextIcon, DownloadIcon } from "lucide-react";
+import { exportReporteCompleto, exportVentasPorRutaToExcel } from "@/utils/exportExcel";
 import { Input } from "@/components/ui/input";
+import { useAppStore } from "@/store/store";
 
 function n(v: any) {
   const num = Number(v);
@@ -30,26 +32,64 @@ function fmtDateTime(iso: string) {
 }
 
 export default function HistorialPage() {
+  const { state } = useAppStore();
+  const userRol = state.session?.rol;
+  const canExport = userRol === "admin" || userRol === "auditor";
+
   const [rutas, setRutas] = React.useState<Ruta[]>([]);
   const [rutaId, setRutaId] = React.useState<string>("");
   const [q, setQ] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [rows, setRows] = React.useState<HistorialCliente[]>([]);
+    const [loadingExport, setLoadingExport] = React.useState(false);
 
   const [open, setOpen] = React.useState(false);
   const [activeCliente, setActiveCliente] = React.useState<HistorialCliente | null>(null);
   const [activeVenta, setActiveVenta] = React.useState<HistorialVenta | null>(null);
   const [ticketVenta, setTicketVenta] = React.useState<HistorialVenta | null>(null);
-  const [filtroFecha, setFiltroFecha] = React.useState(() => {
+  const [fechaDesde, setFechaDesde] = React.useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  const [fechaHasta, setFechaHasta] = React.useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
   const [showReport, setShowReport] = React.useState(false);
 
+  function setPresetFecha(preset: "hoy" | "semana" | "mes" | "todas") {
+    const today = new Date();
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    if (preset === "hoy") {
+      setFechaDesde(fmt(today));
+      setFechaHasta(fmt(today));
+    } else if (preset === "semana") {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      setFechaDesde(fmt(weekAgo));
+      setFechaHasta(fmt(today));
+    } else if (preset === "mes") {
+      const monthAgo = new Date(today);
+      monthAgo.setDate(monthAgo.getDate() - 30);
+      setFechaDesde(fmt(monthAgo));
+      setFechaHasta(fmt(today));
+    } else {
+      setFechaDesde("");
+      setFechaHasta("");
+    }
+  }
+
   async function loadRutas() {
     const data = await listRutas();
+    // Sort numerically by extracting number from name (Ruta 1, Ruta 2, ..., Ruta 10)
+    data.sort((a, b) => {
+      const numA = parseInt(a.nombre.replace(/\D/g, '')) || 0;
+      const numB = parseInt(b.nombre.replace(/\D/g, '')) || 0;
+      return numA - numB;
+    });
     setRutas(data);
-    if (!rutaId && data[0]) setRutaId(data[0].id);
+    // Don't preselect any route - user should choose
   }
 
   async function load() {
@@ -73,25 +113,59 @@ export default function HistorialPage() {
 
   const filtered = rows.filter((c) => c.cliente_nombre.toLowerCase().includes(q.trim().toLowerCase()));
 
-  const allVentasDelDia = React.useMemo(() => {
+  // Helper function to check if a sale is within date range
+  const isVentaInDateRange = (venta: HistorialVenta) => {
+    const d = new Date(venta.fecha_iso);
+    const fechaVenta = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    if (fechaDesde && fechaHasta) {
+      return fechaVenta >= fechaDesde && fechaVenta <= fechaHasta;
+    } else if (fechaDesde) {
+      return fechaVenta >= fechaDesde;
+    } else if (fechaHasta) {
+      return fechaVenta <= fechaHasta;
+    }
+    return true;
+  };
+
+  // Clients filtered by search AND with sales in date range
+  const clientesFiltrados = React.useMemo(() => {
+    return filtered.map(c => ({
+      ...c,
+      ventasFiltradas: c.ventas.filter(isVentaInDateRange)
+    })).filter(c => c.ventasFiltradas.length > 0);
+  }, [filtered, fechaDesde, fechaHasta]);
+
+  const ventasFiltradas = React.useMemo(() => {
     const ventas: HistorialVenta[] = [];
     for (const cliente of filtered) {
       for (const venta of cliente.ventas) {
-        if (filtroFecha) {
-          const d = new Date(venta.fecha_iso);
-          const fechaVenta = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          if (fechaVenta === filtroFecha) {
-            ventas.push(venta);
-          }
-        } else {
+        if (isVentaInDateRange(venta)) {
           ventas.push(venta);
         }
       }
     }
     return ventas.sort((a, b) => new Date(b.fecha_iso).getTime() - new Date(a.fecha_iso).getTime());
-  }, [filtered, filtroFecha]);
+  }, [filtered, fechaDesde, fechaHasta]);
 
   const rutaNombre = rutas.find((r) => r.id === rutaId)?.nombre || "";
+
+  async function exportarTodasLasRutas() {
+    if (!canExport || rutas.length === 0) return;
+    setLoadingExport(true);
+    try {
+      const allVentas = await listTodasLasVentas({ 
+        fechaDesde: fechaDesde || undefined, 
+        fechaHasta: fechaHasta || undefined 
+      });
+      const rangoLabel = fechaDesde && fechaHasta 
+        ? (fechaDesde === fechaHasta ? fechaDesde : `${fechaDesde}_a_${fechaHasta}`)
+        : "todas";
+      exportVentasPorRutaToExcel(allVentas, `ventas_todas_rutas_${rangoLabel}`);
+    } finally {
+      setLoadingExport(false);
+    }
+  }
 
   return (
     <AppShell title="Rutas · Historial">
@@ -101,18 +175,45 @@ export default function HistorialPage() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-black uppercase tracking-widest text-muted-foreground" data-testid="text-historial-header">
-                  Selecciona una ruta
+                  Selecciona una ruta {canExport && <span className="ml-2 text-green-500">(Admin)</span>}
                 </div>
                 <div className="text-sm font-bold" data-testid="text-historial-route-selected">
                   {rutaNombre || "—"}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {canExport && (
+                  <>
+                    <Button 
+                      variant="default" 
+                      className="h-10 rounded-2xl font-black uppercase text-[10px] gap-1 bg-green-600 hover:bg-green-700" 
+                      onClick={exportarTodasLasRutas}
+                      disabled={loadingExport || rutas.length === 0}
+                      data-testid="button-exportar-todas-rutas"
+                    >
+                      <DownloadIcon className="h-4 w-4" /> {loadingExport ? "Cargando..." : "Excel Todas"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-10 rounded-2xl font-black uppercase text-[10px] gap-1" 
+                      onClick={() => {
+                        const rangoLabel = fechaDesde && fechaHasta 
+                          ? (fechaDesde === fechaHasta ? fechaDesde : `${fechaDesde}_a_${fechaHasta}`)
+                          : "todas";
+                        exportReporteCompleto(ventasFiltradas, rutaNombre, rangoLabel);
+                      }}
+                      disabled={ventasFiltradas.length === 0}
+                      data-testid="button-exportar-excel"
+                    >
+                      <DownloadIcon className="h-4 w-4" /> Excel Ruta
+                    </Button>
+                  </>
+                )}
                 <Button 
                   variant="outline" 
                   className="h-10 rounded-2xl font-black uppercase text-[10px] gap-1" 
                   onClick={() => setShowReport(true)}
-                  disabled={allVentasDelDia.length === 0}
+                  disabled={ventasFiltradas.length === 0}
                   data-testid="button-generar-reporte"
                 >
                   <FileTextIcon className="h-4 w-4" /> Reporte
@@ -127,7 +228,7 @@ export default function HistorialPage() {
               <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-none font-bold" data-testid="select-ruta">
                 <SelectValue placeholder="Seleccionar ruta..." />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl">
+              <SelectContent className="rounded-2xl max-h-[300px]">
                 {rutas.map((r) => (
                   <SelectItem key={r.id} value={r.id} className="font-bold" data-testid={`option-ruta-${r.id}`}>
                     {r.nombre}
@@ -136,49 +237,63 @@ export default function HistorialPage() {
               </SelectContent>
             </Select>
 
+            <SearchInput value={q} onChange={setQ} placeholder="Buscar cliente..." testId="search-historial-clientes" />
+            
+            <div className="flex flex-wrap gap-1">
+              <Button variant={fechaDesde === fechaHasta && fechaDesde !== "" ? "default" : "outline"} size="sm" className="text-[10px] h-7 rounded-lg font-bold" onClick={() => setPresetFecha("hoy")}>Hoy</Button>
+              <Button variant="outline" size="sm" className="text-[10px] h-7 rounded-lg font-bold" onClick={() => setPresetFecha("semana")}>7 días</Button>
+              <Button variant="outline" size="sm" className="text-[10px] h-7 rounded-lg font-bold" onClick={() => setPresetFecha("mes")}>30 días</Button>
+              <Button variant={!fechaDesde && !fechaHasta ? "default" : "outline"} size="sm" className="text-[10px] h-7 rounded-lg font-bold" onClick={() => setPresetFecha("todas")}>Todas</Button>
+            </div>
+            
             <div className="grid grid-cols-2 gap-2">
-              <SearchInput value={q} onChange={setQ} placeholder="Buscar cliente..." testId="search-historial-clientes" />
               <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-bold">Desde</span>
                 <Input
                   type="date"
-                  value={filtroFecha}
-                  onChange={(e) => setFiltroFecha(e.target.value)}
-                  className="h-10 pl-10 rounded-2xl bg-muted/30 border-none font-bold text-sm"
-                  data-testid="input-filtro-fecha"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="h-10 pl-14 rounded-2xl bg-muted/30 border-none font-bold text-sm"
+                  data-testid="input-fecha-desde"
+                />
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-bold">Hasta</span>
+                <Input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="h-10 pl-14 rounded-2xl bg-muted/30 border-none font-bold text-sm"
+                  data-testid="input-fecha-hasta"
                 />
               </div>
             </div>
-            {filtroFecha && (
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-muted-foreground">
-                  Ventas del día: <span className="text-primary">{allVentasDelDia.length}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 text-xs font-bold"
-                  onClick={() => setFiltroFecha("")}
-                >
-                  Ver todas las fechas
-                </Button>
+            
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-muted-foreground">
+                Ventas encontradas: <span className="text-primary">{ventasFiltradas.length}</span>
               </div>
-            )}
+            </div>
           </div>
         </Card>
 
         <div className="grid gap-2">
-          {loading ? (
+          {!rutaId ? (
+            <Card className="p-10 rounded-3xl border-dashed bg-muted/20 text-center" data-testid="no-ruta-selected">
+              <div className="text-sm font-bold">Selecciona una ruta</div>
+              <div className="mt-1 text-xs text-muted-foreground font-medium">Elige una ruta del menú para ver el historial de clientes.</div>
+            </Card>
+          ) : loading ? (
             <Card className="p-10 rounded-3xl border-dashed bg-muted/20 text-center" data-testid="loading-historial">
               <div className="text-xs font-bold text-muted-foreground uppercase">Cargando…</div>
             </Card>
-          ) : filtered.length === 0 ? (
+          ) : clientesFiltrados.length === 0 ? (
             <Card className="p-10 rounded-3xl border-dashed bg-muted/20 text-center" data-testid="empty-historial">
-              <div className="text-sm font-bold">Sin clientes</div>
-              <div className="mt-1 text-xs text-muted-foreground font-medium">No hay coincidencias para esta ruta.</div>
+              <div className="text-sm font-bold">Sin ventas</div>
+              <div className="mt-1 text-xs text-muted-foreground font-medium">No hay ventas en el rango de fechas seleccionado.</div>
             </Card>
           ) : (
-            filtered.map((c) => (
+            clientesFiltrados.map((c) => (
               <Card
                 key={c.cliente_id}
                 className="p-4 rounded-2xl border-none shadow-sm bg-card/60 active:scale-[0.99] transition"
@@ -192,7 +307,7 @@ export default function HistorialPage() {
                   <div className="min-w-0">
                     <div className="text-sm font-black truncate" data-testid={`text-historial-cliente-nombre-${c.cliente_id}`}>{c.cliente_nombre}</div>
                     <div className="mt-1 text-[11px] font-bold text-muted-foreground" data-testid={`text-historial-cliente-meta-${c.cliente_id}`}>
-                      {c.ventas.length} ventas · Saldo: {c.saldo_actual != null ? money(c.saldo_actual) : "—"}
+                      {c.ventasFiltradas.length} ventas · Saldo: {c.saldo_actual != null ? money(c.saldo_actual) : "—"}
                     </div>
                   </div>
                   <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
@@ -220,7 +335,7 @@ export default function HistorialPage() {
             </DialogHeader>
 
             <div className="grid gap-3 max-h-[70vh] overflow-y-auto px-1">
-              {(activeCliente?.ventas || []).map((v) => (
+              {((activeCliente as any)?.ventasFiltradas || activeCliente?.ventas || []).map((v: HistorialVenta) => (
                 <Card
                   key={v.id}
                   className="p-3 rounded-2xl border-none shadow-sm bg-muted/20"
@@ -299,8 +414,8 @@ export default function HistorialPage() {
         />
         
         <ReportModal
-          ventas={allVentasDelDia}
-          fecha={filtroFecha}
+          ventas={ventasFiltradas}
+          fecha={fechaDesde && fechaHasta ? (fechaDesde === fechaHasta ? fechaDesde : `${fechaDesde} a ${fechaHasta}`) : "Todas las fechas"}
           rutaNombre={rutaNombre}
           open={showReport}
           onClose={() => setShowReport(false)}

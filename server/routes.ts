@@ -382,6 +382,61 @@ export async function registerRoutes(
     }
   });
 
+  // Endpoint para exportar todas las ventas de todas las rutas (solo admin/auditor)
+  app.get("/api/ventas/todas", authMiddleware, requireRole("admin", "auditor"), async (req: AuthRequest, res) => {
+    try {
+      const { fechaDesde, fechaHasta, limit } = req.query;
+      const parsedLimit = limit ? parseInt(limit as string) : 10000;
+      
+      const rutas = await storage.getRutas();
+      const allVentas: any[] = [];
+      
+      for (const ruta of rutas) {
+        const clientes = await storage.getClientesByRuta(ruta.id);
+        const clienteMap = new Map(clientes.map(c => [c.id, c.nombre]));
+        
+        const ventas = await storage.getVentasByRuta(ruta.id, parsedLimit);
+        
+        for (const venta of ventas) {
+          const d = new Date(venta.fechaVenta);
+          const fechaVentaStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          
+          if (fechaDesde && fechaHasta) {
+            if (fechaVentaStr < String(fechaDesde) || fechaVentaStr > String(fechaHasta)) continue;
+          } else if (fechaDesde) {
+            if (fechaVentaStr < String(fechaDesde)) continue;
+          } else if (fechaHasta) {
+            if (fechaVentaStr > String(fechaHasta)) continue;
+          }
+          
+          // Items already included from getVentasByRuta with productoNombre
+          const mappedItems = ((venta as any).items || []).map((item: any) => ({
+            productoNombre: item.productoNombre || "",
+            unidad: item.productoUnidad || "PIEZA",
+            cantidad: item.cantidad,
+            kilos: item.kilos,
+            precioUnitario: item.precioUnitario,
+            descuentoUnitario: item.descuentoUnitario,
+            subtotal: item.subtotal,
+          }));
+          
+          allVentas.push({
+            ...venta,
+            fechaIso: venta.fechaVenta.toISOString(),
+            ruta_nombre: ruta.nombre,
+            cliente_nombre: clienteMap.get(venta.clienteId) || "",
+            items: mappedItems,
+          });
+        }
+      }
+      
+      res.json({ ventas: allVentas });
+    } catch (error) {
+      console.error("Ventas todas error:", error);
+      res.status(500).json({ error: "Error obteniendo ventas" });
+    }
+  });
+
   // ===== DESCUENTOS =====
   app.get("/api/descuentos", authMiddleware, async (req, res) => {
     try {
@@ -555,6 +610,95 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Delete ruta error:", error);
       res.status(500).json({ error: "Error eliminando ruta" });
+    }
+  });
+
+  // ===== INVENTARIO DE RUTAS (admin/auditor) =====
+  app.get("/api/inventario/ruta/:rutaId", authMiddleware, requireRole("admin", "auditor"), async (req: AuthRequest, res) => {
+    try {
+      const rutaId = parseInt(req.params.rutaId as string);
+      const ruta = await storage.getRuta(rutaId);
+      if (!ruta) {
+        return res.status(404).json({ error: "Ruta no encontrada" });
+      }
+      
+      const inventario = await storage.getInventarioByRuta(rutaId);
+      const inventarioMixto = await storage.getInventarioRutaMixto(rutaId);
+      const allProductos = await storage.getProductos();
+      
+      const inventarioConNombres = inventario.map(inv => {
+        const producto = allProductos.find(p => p.id === inv.productoId);
+        return {
+          ...inv,
+          productoNombre: producto?.nombre || "Producto desconocido",
+          productoUnidad: producto?.unidad || "PIEZA",
+        };
+      });
+      
+      const inventarioMixtoConNombres = inventarioMixto.map(inv => {
+        const producto = allProductos.find(p => p.id === inv.productoId);
+        return {
+          ...inv,
+          productoNombre: producto?.nombre || "Producto desconocido",
+        };
+      });
+      
+      res.json({ 
+        inventario: inventarioConNombres, 
+        inventarioMixto: inventarioMixtoConNombres,
+        ruta 
+      });
+    } catch (error) {
+      console.error("Get inventario ruta error:", error);
+      res.status(500).json({ error: "Error obteniendo inventario" });
+    }
+  });
+
+  const updateInventarioSchema = z.object({
+    productoId: z.number().int().positive("Producto requerido"),
+    cantidad: z.string().min(1, "Cantidad requerida"),
+    tipo: z.enum(["piezas", "kg", "mixto_piezas", "mixto_kg"]),
+    notas: z.string().optional(),
+  });
+
+  app.put("/api/inventario/ruta/:rutaId", authMiddleware, requireRole("admin", "auditor"), async (req: AuthRequest, res) => {
+    try {
+      const rutaId = parseInt(req.params.rutaId as string);
+      const usuario = req.usuario!;
+      
+      const parsed = updateInventarioSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message || "Datos inválidos" });
+      }
+      
+      const { productoId, cantidad, tipo, notas } = parsed.data;
+      const cantidadNum = parseFloat(cantidad);
+      
+      // Validate cantidad is a valid number
+      if (isNaN(cantidadNum) || cantidadNum < 0) {
+        return res.status(400).json({ error: "Cantidad debe ser un número válido mayor o igual a 0" });
+      }
+      
+      const ruta = await storage.getRuta(rutaId);
+      if (!ruta) {
+        return res.status(404).json({ error: "Ruta no encontrada" });
+      }
+      
+      // Use atomic update with movement logging
+      await storage.updateInventarioWithMovement({
+        rutaId,
+        productoId,
+        cantidad,
+        tipo,
+        usuarioId: usuario.id,
+        username: usuario.username,
+        notas,
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Update inventario ruta error:", error);
+      res.status(500).json({ error: "Error actualizando inventario" });
     }
   });
 
@@ -1172,6 +1316,80 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Registrar abono error:", error);
       res.status(500).json({ error: "Error registrando abono" });
+    }
+  });
+
+  // Backup endpoint - Export all data as JSON
+  app.get("/api/backup", authMiddleware, requireRole("admin"), async (req: AuthRequest, res) => {
+    try {
+      const [rutas, productos, usuarios, descuentos, inventarioBodega] = await Promise.all([
+        storage.getRutas(),
+        storage.getProductos(),
+        storage.getVendedores(),
+        storage.getDiscountRules(),
+        storage.getInventarioBodega(),
+      ]);
+      
+      const allClientes: any[] = [];
+      const allVentas: any[] = [];
+      const allInventarioRutas: any[] = [];
+      const allAbonos: any[] = [];
+      for (const ruta of rutas) {
+        const [clientesRuta, ventasRuta, inventarioRuta] = await Promise.all([
+          storage.getClientesByRuta(ruta.id),
+          storage.getVentasByRuta(ruta.id, 10000),
+          storage.getInventarioByRuta(ruta.id),
+        ]);
+        allClientes.push(...clientesRuta);
+        allVentas.push(...ventasRuta);
+        allInventarioRutas.push(...inventarioRuta.map(inv => ({ ...inv, rutaNombre: ruta.nombre })));
+        
+        for (const cliente of clientesRuta) {
+          const abonos = await storage.getAbonosByCliente(cliente.id);
+          allAbonos.push(...abonos.map(a => ({ ...a, clienteNombre: cliente.nombre })));
+        }
+      }
+
+      const backupData = {
+        generatedAt: new Date().toISOString(),
+        generatedBy: req.usuario?.username,
+        version: "2.0",
+        data: {
+          rutas,
+          clientes: allClientes,
+          productos,
+          ventas: allVentas,
+          usuarios: usuarios.map((u: any) => ({ 
+            id: u.id, 
+            username: u.username, 
+            rol: u.rol, 
+            rutaId: u.rutaId,
+            activo: u.activo 
+          })),
+          descuentos,
+          inventarioBodega,
+          inventarioRutas: allInventarioRutas,
+          abonos: allAbonos,
+        },
+        counts: {
+          rutas: rutas.length,
+          clientes: allClientes.length,
+          productos: productos.length,
+          ventas: allVentas.length,
+          usuarios: usuarios.length,
+          descuentos: descuentos.length,
+          inventarioBodega: inventarioBodega.length,
+          inventarioRutas: allInventarioRutas.length,
+          abonos: allAbonos.length,
+        }
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=backup_${new Date().toISOString().split('T')[0]}.json`);
+      res.json(backupData);
+    } catch (error) {
+      console.error("Backup error:", error);
+      res.status(500).json({ error: "Error generando backup" });
     }
   });
 

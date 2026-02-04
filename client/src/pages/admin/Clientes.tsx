@@ -55,7 +55,12 @@ export default function ClientesAdminPage() {
       if (!rutasRes.ok) throw new Error("Error cargando rutas");
       
       const rutasData = await rutasRes.json();
-      setRutas(rutasData.rutas || []);
+      const rutasOrdenadas = (rutasData.rutas || []).sort((a: Ruta, b: Ruta) => {
+        const numA = parseInt(a.nombre.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.nombre.replace(/\D/g, '')) || 0;
+        return numA - numB;
+      });
+      setRutas(rutasOrdenadas);
       
       if (clientesRes.ok) {
         const clientesData = await clientesRes.json();

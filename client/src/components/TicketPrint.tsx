@@ -22,109 +22,142 @@ function fmtDate(iso: string) {
   }
 }
 
+function fmtDateTicket(iso: string) {
+  try {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+  } catch {
+    return iso;
+  }
+}
+
+function getTipoPagoLabel(tipo: string) {
+  const t = tipo?.toLowerCase() || "";
+  if (t === "contado") return "Venta a Contado";
+  if (t === "credito") return "Venta a Crédito";
+  if (t === "parcial" || t === "mixto") return "Venta Mixta";
+  return tipo?.toUpperCase() || "";
+}
+
 export function TicketPrint({ venta }: { venta: HistorialVenta }) {
   const chargedQty = (it: any) => (it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos));
 
   return (
     <div className="ticket" data-testid="ticket-root">
-      <div className="ticket__center ticket__title" data-testid="ticket-title">VENTAS POR RUTA</div>
-      <div className="ticket__center ticket__muted" data-testid="ticket-subtitle">Ticket de venta</div>
+      <div className="ticket__center ticket__title" data-testid="ticket-title">Garlo Alimentos</div>
+      <div className="ticket__center ticket__muted text-[9px]" data-testid="ticket-address">
+        Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289
+      </div>
+      <div className="ticket__center ticket__muted" data-testid="ticket-phone">Tel: 871-1865-648</div>
 
       <div className="ticket__hr" />
 
-      <div className="ticket__row" data-testid="ticket-row-folio">
-        <span>Folio</span>
-        <span className="ticket__strong">{venta.folio || "—"}</span>
-      </div>
-      <div className="ticket__row" data-testid="ticket-row-fecha">
-        <span>Fecha</span>
-        <span>{fmtDate(venta.fecha_iso)}</span>
-      </div>
-      <div className="ticket__row" data-testid="ticket-row-cliente">
-        <span>Cliente</span>
-        <span className="ticket__right ticket__strong">{venta.cliente_nombre}</span>
+      <div className="ticket__row" data-testid="ticket-row-ruta">
+        <span className="ticket__strong">Ruta "{(venta as any).ruta_nombre || venta.folio || "—"}"</span>
       </div>
       <div className="ticket__row" data-testid="ticket-row-vendedor">
-        <span>Vendedor</span>
+        <span>Le atendió:</span>
         <span className="ticket__right">{venta.vendedor_nombre}</span>
       </div>
-
-      <div className="ticket__hr" />
-
-      <div className="ticket__muted" data-testid="ticket-items-title">DETALLE</div>
-      <div className="ticket__items" data-testid="ticket-items">
-        {venta.items.map((it, idx) => {
-          const qty = chargedQty(it);
-          const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
-          const priceBase = n(it.precio_unitario);
-          const dto = n(it.descuento_unitario);
-          const priceFinal = Math.max(priceBase - dto, 0);
-          const lineTotal = qty * priceFinal;
-
-          return (
-            <div className="ticket__item" key={idx} data-testid={`ticket-item-${idx}`}>
-              <div className="ticket__item-name">{it.producto}</div>
-              <div className="ticket__item-meta">
-                <span>{qty.toFixed(it.tipo_venta === "unidad" ? 0 : 3)} {unit}</span>
-                <span>
-                  {dto > 0 ? (
-                    <>
-                      <span className="ticket__strike">{fmtMoney(priceBase)}</span> {fmtMoney(priceFinal)}
-                    </>
-                  ) : (
-                    <>{fmtMoney(priceBase)}</>
-                  )}
-                </span>
-              </div>
-              {dto > 0 ? (
-                <div className="ticket__item-meta ticket__muted">
-                  <span>DTO</span>
-                  <span>-{fmtMoney(dto * qty)}</span>
-                </div>
-              ) : null}
-              <div className="ticket__item-total">{fmtMoney(lineTotal)}</div>
-            </div>
-          );
-        })}
+      <div className="ticket__row" data-testid="ticket-row-cliente">
+        <span>Cliente:</span>
+        <span className="ticket__right ticket__strong">{venta.cliente_id} – {venta.cliente_nombre}</span>
+      </div>
+      <div className="ticket__row" data-testid="ticket-row-fecha">
+        <span>Venta:</span>
+        <span>{fmtDateTicket(venta.fecha_iso)}</span>
+      </div>
+      <div className="ticket__row" data-testid="ticket-row-tipo-pago">
+        <span className="ticket__strong">{getTipoPagoLabel(venta.tipo_pago)}</span>
       </div>
 
       <div className="ticket__hr" />
+
+      <div className="ticket__center ticket__strong" data-testid="ticket-items-title">NOTA DE VENTA</div>
+      <table className="ticket__table" data-testid="ticket-items">
+        <thead>
+          <tr>
+            <th className="text-left">DESC</th>
+            <th>UDM</th>
+            <th>PZ</th>
+            <th>KG</th>
+            <th>PRECIO</th>
+            <th className="text-right">SUBTO</th>
+          </tr>
+        </thead>
+        <tbody>
+          {venta.items.map((it, idx) => {
+            const qty = chargedQty(it);
+            const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
+            const priceBase = n(it.precio_unitario);
+            const dto = n(it.descuento_unitario);
+            const priceFinal = Math.max(priceBase - dto, 0);
+            const lineTotal = qty * priceFinal;
+            const piezas = it.tipo_venta === "unidad" ? qty : ((it as any).piezas || 0);
+            const kilos = it.tipo_venta === "unidad" ? 0 : qty;
+
+            return (
+              <tr key={idx} data-testid={`ticket-item-${idx}`}>
+                <td className="text-left">{it.producto}</td>
+                <td>{unit}</td>
+                <td>{n(piezas).toFixed(0)}</td>
+                <td>{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
+                <td>{fmtMoney(priceFinal)}</td>
+                <td className="text-right">{fmtMoney(lineTotal)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="ticket__hr-double" />
 
       <div className="ticket__row" data-testid="ticket-row-subtotal">
-        <span>Subtotal</span>
+        <span>SUBTOTAL:</span>
         <span>{fmtMoney(venta.subtotal_base)}</span>
       </div>
-      <div className="ticket__row" data-testid="ticket-row-descuentos">
-        <span>Descuentos</span>
-        <span>-{fmtMoney(venta.descuentos)}</span>
-      </div>
+      {n(venta.descuentos) > 0 && (
+        <div className="ticket__row" data-testid="ticket-row-descuentos">
+          <span>Descuento:</span>
+          <span>-{fmtMoney(venta.descuentos)}</span>
+        </div>
+      )}
       <div className="ticket__row ticket__total" data-testid="ticket-row-total">
-        <span>TOTAL</span>
+        <span>TOTAL:</span>
         <span>{fmtMoney(venta.total)}</span>
       </div>
 
+      {(venta.tipo_pago === "credito" || venta.tipo_pago === "parcial") && (
+        <>
+          <div className="ticket__hr" />
+          <div className="ticket__row">
+            <span>Abono:</span>
+            <span>{fmtMoney(venta.abono)}</span>
+          </div>
+          <div className="ticket__row">
+            <span>Saldo anterior:</span>
+            <span>{fmtMoney(venta.saldo_anterior)}</span>
+          </div>
+          <div className="ticket__row ticket__strong">
+            <span>Saldo final:</span>
+            <span>{fmtMoney(venta.saldo_final)}</span>
+          </div>
+        </>
+      )}
+
       <div className="ticket__hr" />
 
-      <div className="ticket__row" data-testid="ticket-row-tipo-pago">
-        <span>Pago</span>
-        <span className="ticket__right">{venta.tipo_pago.toUpperCase()}</span>
-      </div>
-      <div className="ticket__row" data-testid="ticket-row-abono">
-        <span>Abono</span>
-        <span className="ticket__right">{fmtMoney(venta.abono)}</span>
-      </div>
-      <div className="ticket__row" data-testid="ticket-row-saldo-anterior">
-        <span>Saldo ant.</span>
-        <span className="ticket__right">{fmtMoney(venta.saldo_anterior)}</span>
-      </div>
-      <div className="ticket__row" data-testid="ticket-row-saldo-final">
-        <span>Saldo final</span>
-        <span className="ticket__right ticket__strong">{fmtMoney(venta.saldo_final)}</span>
+      <div className="ticket__center ticket__muted" style={{ marginTop: '20px' }}>
+        <div>Firma: ___________________</div>
       </div>
 
-      <div className="ticket__hr" />
-
-      <div className="ticket__center ticket__muted" data-testid="ticket-footer">
+      <div className="ticket__center ticket__muted" style={{ marginTop: '15px' }} data-testid="ticket-footer">
         Gracias por su compra
       </div>
     </div>
@@ -146,23 +179,24 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
   <style>
     :root { color-scheme: light; }
     body { margin: 0; padding: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #fff; color: #111; }
-    /* 58mm approx: 220px @ 96dpi (varies). We'll use 280px for safer readability. */
     .page { width: 280px; margin: 0 auto; padding: 10px 10px 16px; }
-    .ticket { font-size: 12px; line-height: 1.25; }
-    .ticket__title { font-size: 14px; letter-spacing: 0.08em; font-weight: 800; }
+    .ticket { font-size: 11px; line-height: 1.3; }
+    .ticket__title { font-size: 14px; letter-spacing: 0.05em; font-weight: 800; }
+    .ticket__address { font-size: 9px; }
     .ticket__center { text-align: center; }
     .ticket__right { text-align: right; }
-    .ticket__muted { color: #555; }
+    .ticket__muted { color: #555; font-size: 10px; }
     .ticket__strong { font-weight: 800; }
-    .ticket__hr { border-top: 1px dashed #999; margin: 10px 0; }
-    .ticket__row { display: flex; justify-content: space-between; gap: 10px; }
-    .ticket__items { display: grid; gap: 10px; }
-    .ticket__item { border-bottom: 1px dotted #ddd; padding-bottom: 8px; }
-    .ticket__item-name { font-weight: 800; }
-    .ticket__item-meta { display: flex; justify-content: space-between; gap: 10px; }
-    .ticket__item-total { text-align: right; font-weight: 900; margin-top: 4px; }
-    .ticket__total { font-size: 14px; font-weight: 900; }
-    .ticket__strike { text-decoration: line-through; opacity: 0.75; }
+    .ticket__hr { border-top: 1px dashed #999; margin: 8px 0; }
+    .ticket__hr-double { border-top: 2px solid #333; margin: 8px 0; }
+    .ticket__row { display: flex; justify-content: space-between; gap: 6px; margin: 2px 0; }
+    .ticket__total { font-size: 13px; font-weight: 900; }
+    .ticket__table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 9px; }
+    .ticket__table th { font-weight: 700; border-bottom: 1px solid #333; padding: 2px 1px; text-align: center; }
+    .ticket__table td { padding: 2px 1px; text-align: center; border-bottom: 1px dotted #ccc; }
+    .ticket__table td:first-child, .ticket__table th:first-child { text-align: left; }
+    .ticket__table td:last-child, .ticket__table th:last-child { text-align: right; }
+    .ticket__firma { margin-top: 20px; text-align: center; }
 
     @media print {
       body { background: #fff; }
@@ -216,6 +250,29 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
     return it.tipo_venta === "unidad" ? num(it.cantidad) : num(it.kilos);
   }
 
+  function fmtTicket(iso: unknown) {
+    try {
+      const d = new Date(String(iso));
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+    } catch {
+      return String(iso);
+    }
+  }
+
+  function tipoPagoLabel(tipo: string) {
+    const t = (tipo || "").toLowerCase();
+    if (t === "contado") return "Venta a Contado";
+    if (t === "credito") return "Venta a Crédito";
+    if (t === "parcial" || t === "mixto") return "Venta Mixta";
+    return (tipo || "").toUpperCase();
+  }
+
   const itemsHtml = (v.items || []).map((it: any) => {
     const q = qty(it);
     const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
@@ -223,45 +280,58 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
     const dto = num(it.descuento_unitario);
     const final = Math.max(base - dto, 0);
     const lineTotal = q * final;
+    const piezas = it.tipo_venta === "unidad" ? q : (it.piezas || 0);
+    const kilos = it.tipo_venta === "unidad" ? 0 : q;
 
-    return `
-      <div class="ticket__item">
-        <div class="ticket__item-name">${esc(it.producto)}</div>
-        <div class="ticket__item-meta"><span>${q.toFixed(it.tipo_venta === "unidad" ? 0 : 3)} ${unit}</span><span>${dto > 0 ? `<span class=\"ticket__strike\">${money(base)}</span> ${money(final)}` : money(base)}</span></div>
-        ${dto > 0 ? `<div class=\"ticket__item-meta ticket__muted\"><span>DTO</span><span>-${money(dto * q)}</span></div>` : ""}
-        <div class="ticket__item-total">${money(lineTotal)}</div>
-      </div>
-    `;
+    return `<tr>
+      <td>${esc(it.producto)}</td>
+      <td>${unit}</td>
+      <td>${num(piezas).toFixed(0)}</td>
+      <td>${kilos > 0 ? kilos.toFixed(3) : "-"}</td>
+      <td>${money(final)}</td>
+      <td>${money(lineTotal)}</td>
+    </tr>`;
   }).join("");
+
+  const creditoHtml = (v.tipo_pago === "credito" || v.tipo_pago === "parcial") ? `
+    <div class="ticket__hr"></div>
+    <div class="ticket__row"><span>Abono:</span><span>${money(v.abono)}</span></div>
+    <div class="ticket__row"><span>Saldo anterior:</span><span>${money(v.saldo_anterior)}</span></div>
+    <div class="ticket__row ticket__strong"><span>Saldo final:</span><span>${money(v.saldo_final)}</span></div>
+  ` : "";
 
   root.innerHTML = `
     <div class="ticket">
-      <div class="ticket__center ticket__title">VENTAS POR RUTA</div>
-      <div class="ticket__center ticket__muted">Ticket de venta</div>
+      <div class="ticket__center ticket__title">Garlo Alimentos</div>
+      <div class="ticket__center ticket__address ticket__muted">Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289</div>
+      <div class="ticket__center ticket__muted">Tel: 871-1865-648</div>
       <div class="ticket__hr"></div>
 
-      <div class="ticket__row"><span>Folio</span><span class="ticket__strong">${esc(v.folio || "—")}</span></div>
-      <div class="ticket__row"><span>Fecha</span><span>${esc(fmt(v.fecha_iso))}</span></div>
-      <div class="ticket__row"><span>Cliente</span><span class="ticket__right ticket__strong">${esc(v.cliente_nombre || "")}</span></div>
-      <div class="ticket__row"><span>Vendedor</span><span class="ticket__right">${esc(v.vendedor_nombre || "")}</span></div>
+      <div class="ticket__row"><span class="ticket__strong">Ruta "${esc(v.ruta_nombre || v.folio || "—")}"</span></div>
+      <div class="ticket__row"><span>Le atendió:</span><span>${esc(v.vendedor_nombre || "")}</span></div>
+      <div class="ticket__row"><span>Cliente:</span><span class="ticket__strong">${esc(v.cliente_id || "")} – ${esc(v.cliente_nombre || "")}</span></div>
+      <div class="ticket__row"><span>Venta:</span><span>${fmtTicket(v.fecha_iso)}</span></div>
+      <div class="ticket__row"><span class="ticket__strong">${tipoPagoLabel(v.tipo_pago)}</span></div>
 
       <div class="ticket__hr"></div>
-      <div class="ticket__muted">DETALLE</div>
-      <div class="ticket__items">${itemsHtml}</div>
+      <div class="ticket__center ticket__strong">NOTA DE VENTA</div>
+      <table class="ticket__table">
+        <thead>
+          <tr><th>DESC</th><th>UDM</th><th>PZ</th><th>KG</th><th>PRECIO</th><th>SUBTO</th></tr>
+        </thead>
+        <tbody>${itemsHtml}</tbody>
+      </table>
+
+      <div class="ticket__hr-double"></div>
+      <div class="ticket__row"><span>SUBTOTAL:</span><span>${money(v.subtotal_base)}</span></div>
+      ${num(v.descuentos) > 0 ? `<div class="ticket__row"><span>Descuento:</span><span>-${money(v.descuentos)}</span></div>` : ""}
+      <div class="ticket__row ticket__total"><span>TOTAL:</span><span>${money(v.total)}</span></div>
+
+      ${creditoHtml}
 
       <div class="ticket__hr"></div>
-      <div class="ticket__row"><span>Subtotal</span><span>${money(v.subtotal_base)}</span></div>
-      <div class="ticket__row"><span>Descuentos</span><span>-${money(v.descuentos)}</span></div>
-      <div class="ticket__row ticket__total"><span>TOTAL</span><span>${money(v.total)}</span></div>
-
-      <div class="ticket__hr"></div>
-      <div class="ticket__row"><span>Pago</span><span class="ticket__right">${esc(String(v.tipo_pago || "").toUpperCase())}</span></div>
-      <div class="ticket__row"><span>Abono</span><span class="ticket__right">${money(v.abono)}</span></div>
-      <div class="ticket__row"><span>Saldo ant.</span><span class="ticket__right">${money(v.saldo_anterior)}</span></div>
-      <div class="ticket__row"><span>Saldo final</span><span class="ticket__right ticket__strong">${money(v.saldo_final)}</span></div>
-
-      <div class="ticket__hr"></div>
-      <div class="ticket__center ticket__muted">Gracias por su compra</div>
+      <div class="ticket__firma">Firma: ___________________</div>
+      <div class="ticket__center ticket__muted" style="margin-top:12px;">Gracias por su compra</div>
     </div>
   `;
 
@@ -343,66 +413,78 @@ export function TicketModal({ venta, open, onClose }: TicketModalProps) {
             className="bg-white text-black p-3 rounded-xl text-xs font-mono leading-tight"
             style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
           >
-            <div className="ticket__center ticket__title">VENTAS POR RUTA</div>
-            <div className="ticket__center ticket__muted text-[10px]">Ticket de venta</div>
+            <div className="ticket__center font-bold text-sm">Garlo Alimentos</div>
+            <div className="ticket__center ticket__muted text-[8px]">Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289</div>
+            <div className="ticket__center ticket__muted text-[9px]">Tel: 871-1865-648</div>
             
             <div className="ticket__hr" />
             
-            <div className="ticket__row"><span>Folio</span><span className="ticket__strong">{venta.folio || "—"}</span></div>
-            <div className="ticket__row"><span>Fecha</span><span>{fmtDate(venta.fecha_iso)}</span></div>
-            <div className="ticket__row"><span>Cliente</span><span className="ticket__right ticket__strong">{venta.cliente_nombre}</span></div>
-            <div className="ticket__row"><span>Vendedor</span><span className="ticket__right">{venta.vendedor_nombre}</span></div>
+            <div className="ticket__row"><span className="font-bold">Ruta "{(venta as any).ruta_nombre || venta.folio || "—"}"</span></div>
+            <div className="ticket__row"><span>Le atendió:</span><span>{venta.vendedor_nombre}</span></div>
+            <div className="ticket__row"><span>Cliente:</span><span className="font-bold">{venta.cliente_id} – {venta.cliente_nombre}</span></div>
+            <div className="ticket__row"><span>Venta:</span><span>{fmtDateTicket(venta.fecha_iso)}</span></div>
+            <div className="ticket__row"><span className="font-bold">{getTipoPagoLabel(venta.tipo_pago)}</span></div>
             
             <div className="ticket__hr" />
             
-            <div className="ticket__muted text-[10px] mb-1">DETALLE</div>
-            <div className="ticket__items">
-              {venta.items.map((it, idx) => {
-                const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
-                const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
-                const priceBase = n(it.precio_unitario);
-                const dto = n(it.descuento_unitario);
-                const priceFinal = Math.max(priceBase - dto, 0);
-                const lineTotal = qty * priceFinal;
-                
-                return (
-                  <div key={idx} className="ticket__item">
-                    <div className="ticket__item-name">{it.producto}</div>
-                    <div className="ticket__item-meta">
-                      <span>{qty.toFixed(it.tipo_venta === "unidad" ? 0 : 2)} {unit}</span>
-                      <span>
-                        {dto > 0 ? (
-                          <><span className="ticket__strike">{fmtMoney(priceBase)}</span> {fmtMoney(priceFinal)}</>
-                        ) : fmtMoney(priceBase)}
-                      </span>
-                    </div>
-                    {dto > 0 && (
-                      <div className="ticket__item-meta ticket__muted">
-                        <span>DTO</span><span>-{fmtMoney(dto * qty)}</span>
-                      </div>
-                    )}
-                    <div className="ticket__item-total">{fmtMoney(lineTotal)}</div>
-                  </div>
-                );
-              })}
-            </div>
+            <div className="ticket__center font-bold text-[10px] mb-1">NOTA DE VENTA</div>
+            <table className="w-full text-[8px] border-collapse">
+              <thead>
+                <tr className="border-b border-black">
+                  <th className="text-left py-0.5">DESC</th>
+                  <th className="py-0.5">UDM</th>
+                  <th className="py-0.5">PZ</th>
+                  <th className="py-0.5">KG</th>
+                  <th className="py-0.5">PRECIO</th>
+                  <th className="text-right py-0.5">SUBTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                {venta.items.map((it, idx) => {
+                  const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
+                  const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
+                  const priceBase = n(it.precio_unitario);
+                  const dto = n(it.descuento_unitario);
+                  const priceFinal = Math.max(priceBase - dto, 0);
+                  const lineTotal = qty * priceFinal;
+                  const piezas = it.tipo_venta === "unidad" ? qty : ((it as any).piezas || 0);
+                  const kilos = it.tipo_venta === "unidad" ? 0 : qty;
+                  
+                  return (
+                    <tr key={idx} className="border-b border-dotted border-gray-300">
+                      <td className="text-left py-0.5">{it.producto}</td>
+                      <td className="text-center py-0.5">{unit}</td>
+                      <td className="text-center py-0.5">{n(piezas).toFixed(0)}</td>
+                      <td className="text-center py-0.5">{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
+                      <td className="text-center py-0.5">{fmtMoney(priceFinal)}</td>
+                      <td className="text-right py-0.5">{fmtMoney(lineTotal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            
+            <div className="border-t-2 border-black my-2" />
+            
+            <div className="ticket__row"><span>SUBTOTAL:</span><span>{fmtMoney(venta.subtotal_base)}</span></div>
+            {n(venta.descuentos) > 0 && (
+              <div className="ticket__row"><span>Descuento:</span><span>-{fmtMoney(venta.descuentos)}</span></div>
+            )}
+            <div className="ticket__row font-bold text-sm"><span>TOTAL:</span><span>{fmtMoney(venta.total)}</span></div>
+            
+            {(venta.tipo_pago === "credito" || venta.tipo_pago === "parcial") && (
+              <>
+                <div className="ticket__hr" />
+                <div className="ticket__row"><span>Abono:</span><span>{fmtMoney(venta.abono)}</span></div>
+                <div className="ticket__row"><span>Saldo anterior:</span><span>{fmtMoney(venta.saldo_anterior)}</span></div>
+                <div className="ticket__row font-bold"><span>Saldo final:</span><span>{fmtMoney(venta.saldo_final)}</span></div>
+              </>
+            )}
             
             <div className="ticket__hr" />
             
-            <div className="ticket__row"><span>Subtotal</span><span>{fmtMoney(venta.subtotal_base)}</span></div>
-            <div className="ticket__row"><span>Descuentos</span><span>-{fmtMoney(venta.descuentos)}</span></div>
-            <div className="ticket__row ticket__total"><span>TOTAL</span><span>{fmtMoney(venta.total)}</span></div>
-            
-            <div className="ticket__hr" />
-            
-            <div className="ticket__row"><span>Pago</span><span className="ticket__right">{venta.tipo_pago.toUpperCase()}</span></div>
-            <div className="ticket__row"><span>Abono</span><span className="ticket__right">{fmtMoney(venta.abono)}</span></div>
-            <div className="ticket__row"><span>Saldo ant.</span><span className="ticket__right">{fmtMoney(venta.saldo_anterior)}</span></div>
-            <div className="ticket__row"><span>Saldo final</span><span className="ticket__right ticket__strong">{fmtMoney(venta.saldo_final)}</span></div>
-            
-            <div className="ticket__hr" />
-            
-            <div className="ticket__center ticket__muted text-[10px]">Gracias por su compra</div>
+            <div className="ticket__center ticket__muted mt-4">Firma: ___________________</div>
+            <div className="ticket__center ticket__muted text-[10px] mt-3">Gracias por su compra</div>
           </div>
           
           <div className="flex gap-2 mt-4">

@@ -7,7 +7,8 @@ import { SearchInput } from "@/components/SearchInput";
 import { useAppStore } from "@/store/store";
 import { listVentasVendedor, type HistorialVenta } from "@/services/historial";
 import { TicketModal, ReportModal } from "@/components/TicketPrint";
-import { PrinterIcon, CalendarIcon, FileTextIcon } from "lucide-react";
+import { PrinterIcon, CalendarIcon, FileTextIcon, DownloadIcon } from "lucide-react";
+import { exportVentasToExcel } from "@/utils/exportExcel";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -34,6 +35,8 @@ function fmtDateTime(iso: string) {
 export default function MiHistorialPage() {
   const { state } = useAppStore();
   const vendedorId = state.session?.usuario_id || "";
+  const userRol = state.session?.rol;
+  const canExport = userRol === "admin" || userRol === "auditor";
 
   const [q, setQ] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -94,6 +97,17 @@ export default function MiHistorialPage() {
                 <div className="text-sm font-bold" data-testid="text-mi-historial-vendedor">ID {vendedorId}</div>
               </div>
               <div className="flex gap-2">
+                {canExport && (
+                  <Button 
+                    variant="outline" 
+                    className="h-10 rounded-2xl font-black uppercase text-[10px] gap-1" 
+                    onClick={() => exportVentasToExcel(filtered, "mis_ventas")}
+                    disabled={filtered.length === 0}
+                    data-testid="button-exportar-excel"
+                  >
+                    <DownloadIcon className="h-4 w-4" /> Excel
+                  </Button>
+                )}
                 <Button 
                   variant="outline" 
                   className="h-10 rounded-2xl font-black uppercase text-[10px] gap-1" 

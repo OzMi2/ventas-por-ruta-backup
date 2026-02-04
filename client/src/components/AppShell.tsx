@@ -27,6 +27,7 @@ import {
   MapPinIcon,
   ReceiptIcon,
   PercentIcon,
+  PackageIcon,
   ShoppingCartIcon,
   UsersIcon,
 } from "lucide-react";
@@ -53,6 +54,7 @@ const nav: NavItem[] = [
   { label: "Entrada bodega", href: "/auditoria/entrada-bodega", icon: <ClipboardListIcon />, roles: ["auditor", "admin"] },
   { label: "Movimientos", href: "/auditoria/movimientos", icon: <ReceiptIcon />, roles: ["auditor", "admin"] },
   { label: "Abonos", href: "/abonos", icon: <DollarSignIcon />, roles: ["auditor", "admin"] },
+  { label: "Stock Rutas", href: "/admin/stock-rutas", icon: <PackageIcon />, roles: ["auditor", "admin"] },
 
   { label: "Productos", href: "/admin/productos", icon: <BoxesIcon />, roles: ["admin"] },
   { label: "Clientes", href: "/admin/clientes", icon: <UsersIcon />, roles: ["admin"] },
@@ -82,11 +84,11 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
         <SidebarHeader className="gap-3">
           <div className="flex items-center gap-3 px-2 py-1.5">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-sidebar-accent text-sidebar-accent-foreground shadow-sm">
-              <span className="text-sm font-semibold">VR</span>
+              <span className="text-sm font-semibold">GS</span>
             </div>
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">Ventas por Ruta</div>
-              <div className="truncate text-xs text-sidebar-foreground/70">MVP LAN</div>
+              <div className="truncate text-sm font-semibold">Garlo's Ventas</div>
+              <div className="truncate text-xs text-sidebar-foreground/70">Sistema de Ventas</div>
             </div>
           </div>
         </SidebarHeader>

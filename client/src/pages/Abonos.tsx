@@ -10,7 +10,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAppStore } from "@/store/store";
-import { DollarSignIcon, UserIcon, CreditCardIcon, CheckCircleIcon, HistoryIcon } from "lucide-react";
+import { DollarSignIcon, UserIcon, CreditCardIcon, CheckCircleIcon, HistoryIcon, DownloadIcon } from "lucide-react";
+import { exportAbonosToExcel } from "@/utils/exportExcel";
 
 interface Cliente {
   id: number;
@@ -32,6 +33,9 @@ interface Abono {
 export default function AbonosPage() {
   const { toast } = useToast();
   const { state } = useAppStore();
+  const userRol = state.session?.rol;
+  const canExport = userRol === "admin" || userRol === "auditor";
+  
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   
@@ -322,14 +326,27 @@ export default function AbonosPage() {
                   <p className="text-xs text-muted-foreground font-medium">{selectedCliente?.nombre}</p>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowHistorial(!showHistorial)}
-                className="text-xs font-bold"
-              >
-                {showHistorial ? "Ocultar" : "Mostrar"}
-              </Button>
+              <div className="flex gap-2">
+                {historial.length > 0 && canExport && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => exportAbonosToExcel(historial, selectedCliente?.nombre || "cliente")}
+                    className="text-xs font-bold gap-1"
+                    data-testid="button-exportar-abonos"
+                  >
+                    <DownloadIcon className="h-3 w-3" /> Excel
+                  </Button>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowHistorial(!showHistorial)}
+                  className="text-xs font-bold"
+                >
+                  {showHistorial ? "Ocultar" : "Mostrar"}
+                </Button>
+              </div>
             </div>
 
             {showHistorial && (

@@ -113,6 +113,8 @@ export interface IStorage {
   getInventarioRutaMixtoItem(rutaId: number, productoId: number): Promise<InventarioRutaMixto | undefined>;
   transferirBodegaMixtoARuta(productoId: number, rutaId: number, piezas: string, kg: string, usuarioId: number, notas?: string): Promise<boolean>;
   decrementarInventarioMixto(rutaId: number, productoId: number, piezas: string, kg: string): Promise<boolean>;
+  updateInventarioRutaMixtoPiezas(rutaId: number, productoId: number, cantidad: string): Promise<void>;
+  updateInventarioRutaMixtoKg(rutaId: number, productoId: number, cantidad: string): Promise<void>;
   
   // Saldos y Créditos
   getSaldoCliente(clienteId: number): Promise<SaldoCliente | undefined>;
@@ -888,6 +890,46 @@ export class DBStorage implements IStorage {
     return true;
   }
 
+  async updateInventarioRutaMixtoPiezas(rutaId: number, productoId: number, cantidad: string): Promise<void> {
+    const existing = await this.db.select().from(inventarioRutaMixto)
+      .where(and(eq(inventarioRutaMixto.rutaId, rutaId), eq(inventarioRutaMixto.productoId, productoId)))
+      .limit(1);
+    
+    if (existing[0]) {
+      await this.db.update(inventarioRutaMixto)
+        .set({ cantidadPiezas: cantidad, ultimaActualizacion: new Date() })
+        .where(and(eq(inventarioRutaMixto.rutaId, rutaId), eq(inventarioRutaMixto.productoId, productoId)));
+    } else {
+      await this.db.insert(inventarioRutaMixto).values({
+        rutaId,
+        productoId,
+        cantidadPiezas: cantidad,
+        cantidadKg: "0",
+        ultimaActualizacion: new Date(),
+      });
+    }
+  }
+
+  async updateInventarioRutaMixtoKg(rutaId: number, productoId: number, cantidad: string): Promise<void> {
+    const existing = await this.db.select().from(inventarioRutaMixto)
+      .where(and(eq(inventarioRutaMixto.rutaId, rutaId), eq(inventarioRutaMixto.productoId, productoId)))
+      .limit(1);
+    
+    if (existing[0]) {
+      await this.db.update(inventarioRutaMixto)
+        .set({ cantidadKg: cantidad, ultimaActualizacion: new Date() })
+        .where(and(eq(inventarioRutaMixto.rutaId, rutaId), eq(inventarioRutaMixto.productoId, productoId)));
+    } else {
+      await this.db.insert(inventarioRutaMixto).values({
+        rutaId,
+        productoId,
+        cantidadPiezas: "0",
+        cantidadKg: cantidad,
+        ultimaActualizacion: new Date(),
+      });
+    }
+  }
+
   async transferirBodegaMixtoARuta(productoId: number, rutaId: number, piezas: string, kg: string, usuarioId: number, notas?: string): Promise<boolean> {
     return await this.db.transaction(async (tx) => {
       const transferPiezas = parseInt(piezas) || 0;
@@ -1041,6 +1083,111 @@ export class DBStorage implements IStorage {
       }).returning();
       
       return abono;
+    });
+  }
+
+  // Atomic inventory update with movement logging
+  async updateInventarioWithMovement(params: {
+    rutaId: number;
+    productoId: number;
+    cantidad: string;
+    tipo: "piezas" | "kg" | "mixto_piezas" | "mixto_kg";
+    usuarioId: number;
+    username: string;
+    notas?: string;
+  }): Promise<void> {
+    const { rutaId, productoId, cantidad, tipo, usuarioId, username, notas } = params;
+    
+    await this.db.transaction(async (tx) => {
+      // Get current inventory for comparison
+      let cantidadAnterior = "0";
+      
+      if (tipo === "mixto_piezas" || tipo === "mixto_kg") {
+        const [currentMixto] = await tx.select().from(inventarioRutaMixto)
+          .where(and(
+            eq(inventarioRutaMixto.rutaId, rutaId),
+            eq(inventarioRutaMixto.productoId, productoId)
+          )).limit(1);
+        cantidadAnterior = tipo === "mixto_piezas" 
+          ? (currentMixto?.cantidadPiezas || "0") 
+          : (currentMixto?.cantidadKg || "0");
+      } else {
+        const [current] = await tx.select().from(inventarioRuta)
+          .where(and(
+            eq(inventarioRuta.rutaId, rutaId),
+            eq(inventarioRuta.productoId, productoId)
+          )).limit(1);
+        cantidadAnterior = current?.cantidad || "0";
+      }
+      
+      // Update inventory within transaction
+      if (tipo === "mixto_piezas") {
+        const [existing] = await tx.select().from(inventarioRutaMixto)
+          .where(and(
+            eq(inventarioRutaMixto.rutaId, rutaId),
+            eq(inventarioRutaMixto.productoId, productoId)
+          )).limit(1);
+        if (existing) {
+          await tx.update(inventarioRutaMixto)
+            .set({ cantidadPiezas: cantidad, ultimaActualizacion: new Date() })
+            .where(and(
+              eq(inventarioRutaMixto.rutaId, rutaId),
+              eq(inventarioRutaMixto.productoId, productoId)
+            ));
+        } else {
+          await tx.insert(inventarioRutaMixto).values({
+            rutaId, productoId, cantidadPiezas: cantidad, cantidadKg: "0"
+          });
+        }
+      } else if (tipo === "mixto_kg") {
+        const [existing] = await tx.select().from(inventarioRutaMixto)
+          .where(and(
+            eq(inventarioRutaMixto.rutaId, rutaId),
+            eq(inventarioRutaMixto.productoId, productoId)
+          )).limit(1);
+        if (existing) {
+          await tx.update(inventarioRutaMixto)
+            .set({ cantidadKg: cantidad, ultimaActualizacion: new Date() })
+            .where(and(
+              eq(inventarioRutaMixto.rutaId, rutaId),
+              eq(inventarioRutaMixto.productoId, productoId)
+            ));
+        } else {
+          await tx.insert(inventarioRutaMixto).values({
+            rutaId, productoId, cantidadPiezas: "0", cantidadKg: cantidad
+          });
+        }
+      } else {
+        const [existing] = await tx.select().from(inventarioRuta)
+          .where(and(
+            eq(inventarioRuta.rutaId, rutaId),
+            eq(inventarioRuta.productoId, productoId)
+          )).limit(1);
+        if (existing) {
+          await tx.update(inventarioRuta)
+            .set({ cantidad, ultimaActualizacion: new Date() })
+            .where(and(
+              eq(inventarioRuta.rutaId, rutaId),
+              eq(inventarioRuta.productoId, productoId)
+            ));
+        } else {
+          await tx.insert(inventarioRuta).values({ rutaId, productoId, cantidad });
+        }
+      }
+      
+      // Log movement within same transaction
+      const cantidadNum = parseFloat(cantidad);
+      const diferencia = cantidadNum - parseFloat(cantidadAnterior);
+      const tipoMovimiento = diferencia >= 0 ? "ajuste_entrada" : "ajuste_salida";
+      
+      await tx.insert(movimientosStock).values({
+        productoId,
+        rutaId,
+        usuarioId,
+        tipo: tipoMovimiento,
+        cantidad: Math.abs(diferencia).toString(),
+        notas: notas || `Ajuste de inventario por ${username}: ${cantidadAnterior} -> ${cantidad}`,
+      });
     });
   }
 

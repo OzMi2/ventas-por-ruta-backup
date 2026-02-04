@@ -63,13 +63,13 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-md">
-            <span className="text-sm font-semibold">VR</span>
+            <span className="text-sm font-semibold">GS</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-login-title">
-            Ventas por Ruta
+            Garlo's Sistema de Ventas
           </h1>
           <p className="mt-1 text-sm text-muted-foreground" data-testid="text-login-subtitle">
-            Conecta tu dispositivo a la red local y trabaja sin depender de internet.
+            Soluciones rápidas, ventas rápidas
           </p>
         </div>
 

@@ -181,3 +181,60 @@ function mapVentaToHistorial(venta: any): HistorialVenta {
     items,
   };
 }
+
+export type VentaConRuta = {
+  id: string;
+  folio: string;
+  fecha_iso: string;
+  ruta_nombre: string;
+  cliente_id: string;
+  cliente_nombre: string;
+  vendedor_id: string;
+  vendedor_nombre: string;
+  tipo_pago: string;
+  total: number;
+  descuentos: number;
+  items: HistorialVentaItem[];
+};
+
+export async function listTodasLasVentas(params: { fechaDesde?: string; fechaHasta?: string }): Promise<VentaConRuta[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.fechaDesde) queryParams.set("fechaDesde", params.fechaDesde);
+    if (params.fechaHasta) queryParams.set("fechaHasta", params.fechaHasta);
+    
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(`/api/ventas/todas?${queryParams.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return [];
+    const response = await res.json();
+    const ventas = response?.ventas || [];
+    
+    return ventas.map((v: any) => ({
+      id: String(v.id),
+      folio: String(v.id),
+      fecha_iso: v.fechaIso || v.fechaVenta || "",
+      ruta_nombre: v.ruta_nombre || "",
+      cliente_id: String(v.clienteId),
+      cliente_nombre: v.cliente_nombre || "",
+      vendedor_id: String(v.usuarioId),
+      vendedor_nombre: v.vendedorNombre || "",
+      tipo_pago: v.tipoPago === "contado" || v.tipoPago === "credito" ? v.tipoPago : "contado",
+      total: n(v.total),
+      descuentos: n(v.descuentos),
+      items: (v.items || []).map((i: any) => ({
+        producto: i.productoNombre || "",
+        tipo_venta: i.unidad || "unidad",
+        cantidad: n(i.cantidad),
+        kilos: n(i.kilos),
+        precio_unitario: n(i.precioUnitario),
+        descuento_unitario: n(i.descuentoUnitario),
+        subtotal: n(i.subtotal),
+      })),
+    }));
+  } catch (error) {
+    console.error("Error fetching todas las ventas:", error);
+    return [];
+  }
+}

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAppStore } from "@/store/store";
+import { DownloadIcon, DatabaseIcon } from "lucide-react";
 
 function normalize(url: string) {
   return url.trim().replace(/\/+$/, "");
@@ -15,6 +16,43 @@ export default function ConfiguracionPage() {
   const { state, dispatch } = useAppStore();
   const { toast } = useToast();
   const [value, setValue] = React.useState(state.apiBaseUrl || "");
+  const [downloading, setDownloading] = React.useState(false);
+
+  const isAdmin = state.session?.rol === "admin";
+
+  async function downloadBackup() {
+    setDownloading(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch("/api/backup", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!response.ok) {
+        throw new Error("Error al generar backup");
+      }
+      
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup_${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({ 
+        title: "Backup Descargado", 
+        description: `Rutas: ${data.counts.rutas}, Clientes: ${data.counts.clientes}, Productos: ${data.counts.productos}, Ventas: ${data.counts.ventas}` 
+      });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const envUrl = ((import.meta as any).env?.VITE_API_BASE_URL || "").trim();
 
@@ -80,6 +118,31 @@ export default function ConfiguracionPage() {
             </div>
           </CardContent>
         </Card>
+
+        {isAdmin && (
+          <Card className="shadow-sm rounded-3xl border-none bg-card/60">
+            <CardHeader>
+              <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                <DatabaseIcon className="h-4 w-4" />
+                Respaldo de Datos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Descarga un respaldo completo de todos los datos del sistema (rutas, clientes, productos, ventas).
+              </p>
+              <Button
+                className="h-12 rounded-2xl font-black uppercase tracking-tighter gap-2"
+                onClick={downloadBackup}
+                disabled={downloading}
+                data-testid="button-download-backup"
+              >
+                <DownloadIcon className="h-4 w-4" />
+                {downloading ? "Generando..." : "Descargar Respaldo"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="shadow-sm rounded-3xl border-none bg-card/60">
           <CardHeader>

@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchInput } from "@/components/SearchInput";
-import { ShoppingCartIcon } from "lucide-react";
+import { ShoppingCartIcon, AlertTriangleIcon, XIcon } from "lucide-react";
+import { getLowStockSummary } from "@/hooks/useLowStockAlerts";
 import { fetchProductos } from "@/services/productos";
 import { fetchDiscounts, findApplicableDiscount, type DiscountRule } from "@/services/discounts";
 import { useAppStore } from "@/store/store";
@@ -66,6 +67,7 @@ export default function ProductosPage() {
   const [selected, setSelected] = React.useState<Producto | null>(null);
   const [cantidad, setCantidad] = React.useState<string>("");
   const [kilos, setKilos] = React.useState<string>("");
+  const [showLowStockAlert, setShowLowStockAlert] = React.useState(true);
 
   async function load() {
     setLoading(true);
@@ -92,6 +94,16 @@ export default function ProductosPage() {
   }, [vendedorId, clienteId, clientName]);
 
   const filtered = rows.filter((p) => p.nombre.toLowerCase().includes(q.trim().toLowerCase()));
+
+  const lowStockProducts = React.useMemo(() => {
+    return getLowStockSummary(rows.map(p => ({
+      id: parseInt(p.id),
+      nombre: p.nombre,
+      tipo_venta: p.tipo_venta,
+      stock_piezas: p.stock_piezas ?? 0,
+      stock_kg: p.stock_kg ?? 0,
+    })));
+  }, [rows]);
 
   function openAdd(p: Producto) {
     setSelected(p);
@@ -201,6 +213,31 @@ export default function ProductosPage() {
             <AlertDescription data-testid="text-productos-error">{error}</AlertDescription>
           </Alert>
         ) : null}
+
+        {showLowStockAlert && lowStockProducts.length > 0 && (
+          <Alert className="rounded-2xl bg-amber-500/10 border-amber-500/30" data-testid="alert-low-stock">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangleIcon className="h-4 w-4 text-amber-600 mt-0.5" />
+                <div>
+                  <AlertTitle className="text-amber-700 text-sm font-bold">Stock Bajo</AlertTitle>
+                  <AlertDescription className="text-amber-600 text-xs mt-1">
+                    {lowStockProducts.slice(0, 3).join(" · ")}
+                    {lowStockProducts.length > 3 && ` y ${lowStockProducts.length - 3} más`}
+                  </AlertDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-amber-600 hover:text-amber-700"
+                onClick={() => setShowLowStockAlert(false)}
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </Alert>
+        )}
 
         {loading ? (
           <div className="grid gap-2">
