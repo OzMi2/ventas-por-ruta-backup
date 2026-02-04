@@ -1,0 +1,64 @@
+ubuntu@ip-172-26-9-130:~/app$ npx esbuild server/index.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs --minify \
+
+  --external:bcrypt \
+
+  --external:better-sqlite3 \
+
+  --external:vite \
+
+  --external:lightningcss \
+
+  --external:esbuild \
+
+  --external:tsx \
+
+  --external:../vite.config \
+
+  --external:@vitejs/* \
+
+  --external:@tailwindcss/*
+✘ [ERROR] Could not resolve "../vite.config"
+
+    server/vite.ts:4:23:
+      4 │ import viteConfig from "../vite.config";
+        ╵                        ~~~~~~~~~~~~~~~~
+
+▲ [WARNING] "esbuild" should be marked as external for use with "require.resolve" [require-resolve-not-external]
+
+    node_modules/vite/node_modules/esbuild/lib/main.js:1656:36:
+      1656 │   const libMainJS = require.resolve("esbuild");
+           ╵                                     ~~~~~~~~~
+
+✘ [ERROR] Could not resolve "../pkg"
+
+    node_modules/lightningcss/node/index.js:17:27:
+      17 │   module.exports = require(`../pkg`);
+         ╵                            ~~~~~~~~
+
+▲ [WARNING] The glob pattern require("../lightningcss.*.node") did not match any files [empty-glob]
+
+    node_modules/lightningcss/node/index.js:22:29:
+      22 │     module.exports = require(`../lightningcss.${parts.join('-')}.node`);
+         ╵                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+▲ [WARNING] "esbuild" should be marked as external for use with "require.resolve" [require-resolve-not-external]
+
+    node_modules/tsx/node_modules/esbuild/lib/main.js:1656:36:
+      1656 │   const libMainJS = require.resolve("esbuild");
+           ╵                                     ~~~~~~~~~
+
+3 warnings and 2 errors
+--external:bcrypt: command not found
+--external:better-sqlite3: command not found
+--external:vite: command not found
+--external:lightningcss: command not found
+--external:esbuild: command not found
+--external:tsx: command not found
+-bash: --external:../vite.config: No such file or directory
+-bash: --external:@vitejs/*: No such file or directory
+-bash: --external:@tailwindcss/*: No such file or directory
+ubuntu@ip-172-26-9-130:~/app$ cd /home/ubuntu/app && npx esbuild server/index.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs --minify --external:bcrypt --external:better-sqlite3 --external:vite --external:lightningcss --external:esbuild --external:tsx --external:'../vite.config' --external:'@vitejs/*' --external:'@tailwindcss/*'
+
+  dist/index.cjs  1.1mb ⚠
+
+⚡ Done in 196ms
