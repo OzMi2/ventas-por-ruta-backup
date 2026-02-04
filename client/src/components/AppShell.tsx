@@ -221,6 +221,43 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
             </div>
           </nav>
         )}
+
+        {(role === "admin" || role === "auditor") && (
+          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden">
+            <div className="flex items-center justify-around py-2">
+              <Link href="/historial" data-testid="nav-bottom-historial-admin">
+                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/historial' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <ReceiptIcon className="h-5 w-5" />
+                  <span className="text-[9px] font-bold uppercase">Ventas</span>
+                </div>
+              </Link>
+              <Link href="/auditoria/stock-bodega" data-testid="nav-bottom-bodega">
+                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/auditoria/stock-bodega' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <BoxesIcon className="h-5 w-5" />
+                  <span className="text-[9px] font-bold uppercase">Bodega</span>
+                </div>
+              </Link>
+              <Link href="/admin/stock-rutas" data-testid="nav-bottom-stock-rutas">
+                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/admin/stock-rutas' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <PackageIcon className="h-5 w-5" />
+                  <span className="text-[9px] font-bold uppercase">Rutas</span>
+                </div>
+              </Link>
+              <Link href="/auditoria/mover-stock" data-testid="nav-bottom-mover">
+                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/auditoria/mover-stock' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <ArchiveIcon className="h-5 w-5" />
+                  <span className="text-[9px] font-bold uppercase">Mover</span>
+                </div>
+              </Link>
+              <Link href="/configuracion" data-testid="nav-bottom-config">
+                <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/configuracion' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                  <CogIcon className="h-5 w-5" />
+                  <span className="text-[9px] font-bold uppercase">Config</span>
+                </div>
+              </Link>
+            </div>
+          </nav>
+        )}
       </div>
     </SidebarProvider>
   );

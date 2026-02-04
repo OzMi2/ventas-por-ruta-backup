@@ -1,10 +1,13 @@
 import { apiClient, type BootstrapResponse } from "@/lib/api";
 import { saveBootstrapToCache, getBootstrapFromCache } from "./offlineCache";
 
-let cachedBootstrap: BootstrapResponse | null = null;
+let cachedBootstrap: BootstrapResponse | null = getBootstrapFromCache();
 
 async function ensureBootstrap(): Promise<BootstrapResponse> {
-  if (cachedBootstrap) return cachedBootstrap;
+  if (cachedBootstrap) {
+    refreshBootstrapInBackground();
+    return cachedBootstrap;
+  }
   
   try {
     cachedBootstrap = await apiClient.bootstrap();
@@ -18,6 +21,14 @@ async function ensureBootstrap(): Promise<BootstrapResponse> {
     }
     throw error;
   }
+}
+
+function refreshBootstrapInBackground() {
+  apiClient.bootstrap().then((data) => {
+    cachedBootstrap = data;
+    saveBootstrapToCache(data);
+  }).catch(() => {
+  });
 }
 
 export async function fetchProductos(_params?: { vendedor_id?: string | number; cliente_id?: string | number }) {
