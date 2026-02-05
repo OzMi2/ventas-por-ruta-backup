@@ -10,12 +10,15 @@ interface VentaPayload {
   ruta_id?: string | number;
   tipo_pago: string;
   abono_pago: number;
+  pago_cliente?: number;
+  cambio?: number;
   folio_ticket: string | null;
   items: Array<{
     producto_id: string | number;
     cantidad: number;
     kilos: number;
     precio_unitario?: number;
+    descuento_unitario?: number;
     subtotal?: number;
   }>;
 }
@@ -58,12 +61,14 @@ export async function registrarVenta(payload: VentaPayload) {
     const kilos = item.kilos || 0;
     const cantidad = kilos > 0 ? kilos : piezas;
     const precioUnitario = item.precio_unitario || 0;
-    const subtotal = item.subtotal || (cantidad * precioUnitario);
+    const descuentoUnitario = item.descuento_unitario || 0;
+    const subtotal = item.subtotal || (cantidad * (precioUnitario - descuentoUnitario));
     
     return {
       productoId: parseInt(String(item.producto_id)),
       cantidad: cantidad.toFixed(3),
       precioUnitario: precioUnitario.toFixed(2),
+      descuentoUnitario: descuentoUnitario.toFixed(2),
       subtotal: subtotal.toFixed(2),
       piezas: piezas.toFixed(0),
       kilos: kilos.toFixed(3),
@@ -91,6 +96,8 @@ export async function registrarVenta(payload: VentaPayload) {
     venta: ventaData as any,
     items,
     abono: payload.abono_pago,
+    pagoCliente: payload.pago_cliente || 0,
+    cambio: payload.cambio || 0,
   };
 
   try {

@@ -1,0 +1,149 @@
+============================================
+INSTRUCCIONES MACRO VBA V2
+Sistema de Ventas por Ruta - Garlo Alimentos
+============================================
+
+NUEVA VERSION CON:
+- IDs de clientes directo de la base de datos
+- Separacion correcta por fechas (fila vacia entre dias)
+- Columnas: Producto, Precio, Descuentos, Cantidad (con tipo Pzas/Kg/Mixto)
+- Tipo de Pago, Pago, Abono
+- Saldo Anterior y Saldo Actual
+- Suma del Total al final
+- Seccion de Cargo/Existencias separada por columna vacia
+
+============================================
+ORDEN DE COLUMNAS
+============================================
+
+SECCION PRINCIPAL (Columnas A-P):
+A: Folio (ID de la venta/ticket)
+B: Id (ID del cliente en la base de datos)
+C: Fecha (DD/MM/YYYY)
+D: Hora (HH:MM)
+E: Cliente (Nombre del cliente)
+F: Producto (Nombre del producto)
+G: Precio (Precio unitario del producto)
+H: Descuentos (Monto de descuento aplicado)
+I: Cantidad Compra (con tipo: "5 Pzas", "2.50 Kg", "3 Pzas / 4.50 Kg")
+J: Tipo Pago (contado, credito, parcial)
+K: Pago (Monto pagado en esta venta)
+L: Abono (Pago adicional a cuenta)
+M: Subtotal (Por linea de producto)
+N: Total (Total de la venta - solo en primera fila)
+O: Saldo Anterior (Lo que debia ANTES de la venta)
+P: Saldo Actual (Deuda despues de la venta)
+
+COLUMNA VACIA: Q (separador)
+
+SECCION CARGO/EXISTENCIAS (Columnas R-T):
+R: Cargo (Piezas cargadas por admin/auditor)
+S: Existencia Anterior (Lo que tenia antes de la carga)
+T: Existencia Actual (Existencia Anterior + Cargo)
+
+============================================
+INSTALACION
+============================================
+
+PASO 1: ABRIR EXCEL
+- Abre Microsoft Excel
+- Crea un nuevo libro en blanco
+
+PASO 2: ABRIR EDITOR VBA
+- Presiona ALT + F11
+
+PASO 3: HABILITAR REFERENCIAS
+- Menu: Herramientas > Referencias
+- Marca estas opciones:
+  * Microsoft XML, v6.0
+  * Microsoft Scripting Runtime
+- Clic en Aceptar
+
+PASO 4: INSERTAR MODULO
+- Menu: Insertar > Modulo
+
+PASO 5: COPIAR CODIGO
+- Abre "VentasPorRuta_Macro_v2.bas"
+- Copia TODO el contenido
+- Pegalo en la ventana del modulo
+
+PASO 6: CONFIGURAR CREDENCIALES
+- Busca estas lineas:
+  Private Const USERNAME As String = "admin"
+  Private Const PASSWORD As String = "1234"
+- Cambia por tus credenciales si es necesario
+
+PASO 7: EJECUTAR
+- Cierra el Editor VBA (ALT + Q)
+- Menu: Vista > Macros > Ver Macros
+- Selecciona "CargarVentasEnTiempoReal"
+- Clic en "Ejecutar"
+
+============================================
+RESULTADO ESPERADO
+============================================
+
+La macro creara:
+- Una hoja por cada ruta (R1, R2, R3...)
+- Datos ordenados del mas reciente al mas antiguo
+- Una fila vacia separando cada dia diferente
+- Una fila por cada producto vendido
+- Suma del TOTAL al final de los datos
+- Colores en encabezados:
+  * Azul: Seccion de ventas
+  * Verde: Seccion de cargo/existencias
+  * Amarillo: Suma del total
+
+============================================
+COMO FUNCIONAN LOS SALDOS
+============================================
+
+SALDO ANTERIOR:
+- Lo que el cliente debia ANTES de esta venta
+- Se acumula de ventas anteriores
+
+SALDO ACTUAL:
+- Saldo Anterior + (Total - Pago)
+- Si pago contado: Saldo Actual = Saldo Anterior (no cambia)
+- Si fue a credito: Saldo Actual = Saldo Anterior + Total
+- Si fue parcial: Saldo Actual = Saldo Anterior + (Total - Abono)
+
+Ejemplo:
+- Cliente debia $100 (Saldo Anterior)
+- Compra $50 a credito
+- Saldo Actual = $100 + $50 = $150
+
+============================================
+SEPARACION POR FECHAS
+============================================
+
+Las ventas se separan por fechas con una fila vacia:
+
+Fila 4: Venta del 04/02/2026
+Fila 5: Venta del 04/02/2026
+Fila 6: (vacia - separador de fecha)
+Fila 7: Venta del 03/02/2026
+Fila 8: Venta del 03/02/2026
+
+============================================
+SOLUCION DE PROBLEMAS
+============================================
+
+Error "No se pudo autenticar":
+- Verifica usuario y contrasena
+- Asegurate que el servidor este funcionando
+
+Error "Referencias no encontradas":
+- Habilita las referencias del Paso 3
+
+Error de permisos:
+- Menu: Archivo > Opciones > Centro de confianza
+- Configuracion de macros > Habilitar todas
+
+Los saldos no cuadran:
+- Los saldos se calculan en orden cronologico
+- Si hay ventas faltantes, los saldos pueden variar
+
+No aparecen productos:
+- Verifica que las ventas tengan items asociados
+- Los productos vienen de la base de datos

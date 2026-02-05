@@ -53,7 +53,6 @@ const nav: NavItem[] = [
   { label: "Mover stock", href: "/auditoria/mover-stock", icon: <ArchiveIcon />, roles: ["auditor", "admin"] },
   { label: "Entrada bodega", href: "/auditoria/entrada-bodega", icon: <ClipboardListIcon />, roles: ["auditor", "admin"] },
   { label: "Movimientos", href: "/auditoria/movimientos", icon: <ReceiptIcon />, roles: ["auditor", "admin"] },
-  { label: "Abonos", href: "/abonos", icon: <DollarSignIcon />, roles: ["auditor", "admin"] },
   { label: "Stock Rutas", href: "/admin/stock-rutas", icon: <PackageIcon />, roles: ["auditor", "admin"] },
 
   { label: "Productos", href: "/admin/productos", icon: <BoxesIcon />, roles: ["admin"] },

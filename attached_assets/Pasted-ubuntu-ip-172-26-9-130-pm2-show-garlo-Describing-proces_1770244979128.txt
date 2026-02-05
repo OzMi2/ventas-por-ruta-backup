@@ -1,0 +1,60 @@
+ubuntu@ip-172-26-9-130:~$ pm2 show garlo
+ Describing process with id 0 - name garlo 
+┌───────────────────┬───────────────────────────────────────────────────┐
+│ status            │ online                                            │
+│ name              │ garlo                                             │
+│ namespace         │ default                                           │
+│ version           │ 1.0.0                                             │
+│ restarts          │ 0                                                 │
+│ uptime            │ 19h                                               │
+│ script path       │ /home/ubuntu/app/dist/index.cjs                   │
+│ script args       │ N/A                                               │
+│ error log path    │ /home/ubuntu/.pm2/logs/garlo-error.log            │
+│ out log path      │ /home/ubuntu/.pm2/logs/garlo-out.log              │
+│ pid path          │ /home/ubuntu/.pm2/pids/garlo-0.pid                │
+│ interpreter       │ /home/ubuntu/.nvm/versions/node/v24.13.0/bin/node │
+│ interpreter args  │ N/A                                               │
+│ script id         │ 0                                                 │
+│ exec cwd          │ /home/ubuntu/app                                  │
+│ exec mode         │ fork_mode                                         │
+│ node.js version   │ 24.13.0                                           │
+│ node env          │ production                                        │
+│ watch & reload    │ ✘                                                 │
+│ unstable restarts │ 0                                                 │
+│ created at        │ 2026-02-04T03:23:10.273Z                          │
+└───────────────────┴───────────────────────────────────────────────────┘
+ Actions available 
+┌────────────────────────┐
+│ km:heapdump            │
+│ km:cpu:profiling:start │
+│ km:cpu:profiling:stop  │
+│ km:heap:sampling:start │
+│ km:heap:sampling:stop  │
+└────────────────────────┘
+ Trigger via: pm2 trigger garlo <action_name>
+
+ Code metrics value 
+┌────────────────────────┬───────────┐
+│ Used Heap Size         │ 23.62 MiB │
+│ Heap Usage             │ 84.3 %    │
+│ Heap Size              │ 28.02 MiB │
+│ Event Loop Latency p95 │ 1.58 ms   │
+│ Event Loop Latency     │ 0.63 ms   │
+│ Active handles         │ 4         │
+│ Active requests        │ 0         │
+│ HTTP                   │ 0 req/min │
+│ HTTP P95 Latency       │ 65 ms     │
+│ HTTP Mean Latency      │ 1 ms      │
+└────────────────────────┴───────────┘
+ Divergent env variables from local env 
+┌────────────────┬───────────────────────────────┐
+│ PWD            │ /home/ubuntu/app              │
+│ SSH_CONNECTION │ 52.95.25.247 37595 172.26.9.1 │
+│ XDG_SESSION_ID │ 47                            │
+│ SSH_CLIENT     │ 52.95.25.247 37595 22         │
+└────────────────┴───────────────────────────────┘
+
+ Add your own code metrics: http://bit.ly/code-metrics
+ Use `pm2 logs garlo [--lines 1000]` to display logs
+ Use `pm2 env 0` to display environment variables
+ Use `pm2 monit` to monitor CPU and Memory usage garlo

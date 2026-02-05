@@ -44,7 +44,8 @@ function subtotalFor(p: Producto, cantidad?: number, kilos?: number, discounts: 
   const chargedQty = p.tipo_venta === "unidad" ? n(cantidad) : n(kilos);
   const clienteIdNum = clienteId ? parseInt(clienteId) : 0;
   const productoIdNum = parseInt(p.id);
-  const disc = clienteIdNum ? findApplicableDiscount(discounts, clienteIdNum, productoIdNum, chargedQty) : null;
+  const unidad: "PIEZA" | "KG" = p.tipo_venta === "unidad" ? "PIEZA" : "KG";
+  const disc = clienteIdNum ? findApplicableDiscount(discounts, clienteIdNum, productoIdNum, chargedQty, unidad) : null;
   const price = disc ? Math.max(n(p.precio_base) - disc.discountAmount, 0) : n(p.precio_aplicado);
   
   if (p.tipo_venta === "unidad") return n(cantidad) * price;
@@ -155,7 +156,8 @@ export default function ProductosPage() {
     const chargedQty = tipo === "unidad" ? n(c) : n(k);
     const clienteIdNum = clienteId ? parseInt(clienteId) : 0;
     const productoIdNum = parseInt(selected.id);
-    const disc = clienteIdNum ? findApplicableDiscount(discountRules, clienteIdNum, productoIdNum, chargedQty) : null;
+    const unidad: "PIEZA" | "KG" = tipo === "unidad" ? "PIEZA" : "KG";
+    const disc = clienteIdNum ? findApplicableDiscount(discountRules, clienteIdNum, productoIdNum, chargedQty, unidad) : null;
     const finalPrice = disc ? Math.max(n(selected.precio_base) - disc.discountAmount, 0) : selected.precio_aplicado;
 
     dispatch({
@@ -338,21 +340,6 @@ export default function ProductosPage() {
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    <div className="grid gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground" htmlFor="kilos">
-                        Kilos
-                      </label>
-                      <Input
-                        id="kilos"
-                        className="h-12 text-lg font-bold rounded-2xl bg-muted/30 border-none text-center"
-                        inputMode="decimal"
-                        value={kilos}
-                        onChange={(e) => setKilosVal(e.target.value)}
-                        placeholder="0.00"
-                        data-testid="input-kilos"
-                      />
-                    </div>
-
                     {selected.requiere_piezas ? (
                       <div className="grid gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground" htmlFor="cantidad2">
@@ -369,6 +356,21 @@ export default function ProductosPage() {
                         />
                       </div>
                     ) : null}
+
+                    <div className="grid gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground" htmlFor="kilos">
+                        Kilos
+                      </label>
+                      <Input
+                        id="kilos"
+                        className="h-12 text-lg font-bold rounded-2xl bg-muted/30 border-none text-center"
+                        inputMode="decimal"
+                        value={kilos}
+                        onChange={(e) => setKilosVal(e.target.value)}
+                        placeholder="0.00"
+                        data-testid="input-kilos"
+                      />
+                    </div>
                   </div>
                 )}
 

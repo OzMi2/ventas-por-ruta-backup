@@ -367,7 +367,7 @@ export default function AdminRutas() {
                         <SelectTrigger data-testid="select-vendedor">
                           <SelectValue placeholder="Seleccionar vendedor..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-60 overflow-y-auto">
                           {vendedores
                             .filter(v => !v.rutaId || (editingRuta && v.rutaId === editingRuta.id))
                             .map((v) => (

@@ -1,16 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { syncPendingVentas, getPendingVentasCount } from "@/services/ventas";
-import { getLastSyncTime } from "@/services/offlineCache";
+import { getLastSyncTime, clearBootstrapCache } from "@/services/offlineCache";
 
 export function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const wasOffline = useRef(false);
 
   useEffect(() => {
     function handleOnline() {
       setIsOnline(true);
+      if (wasOffline.current) {
+        wasOffline.current = false;
+        window.dispatchEvent(new CustomEvent('app:reconnected'));
+      }
     }
     function handleOffline() {
       setIsOnline(false);
+      wasOffline.current = true;
     }
 
     window.addEventListener("online", handleOnline);
@@ -23,6 +29,17 @@ export function useOnlineStatus() {
   }, []);
 
   return isOnline;
+}
+
+export function useReconnectRefresh(onReconnect: () => void) {
+  useEffect(() => {
+    const handler = () => {
+      clearBootstrapCache();
+      onReconnect();
+    };
+    window.addEventListener('app:reconnected', handler);
+    return () => window.removeEventListener('app:reconnected', handler);
+  }, [onReconnect]);
 }
 
 export function usePendingVentas() {

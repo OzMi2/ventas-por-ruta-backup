@@ -1,0 +1,54 @@
+[Export] Fetching ventas con filtros: Object
+historial.ts:206 [listTodasLasVentas] Calling API with params: Object
+historial.ts:212 [listTodasLasVentas] Response status: 200
+Historial.tsx:162 [Export] Ventas recibidas: 15 Array(2)
+exportExcel.ts:269 [exportVentasPorRutaToExcel] Recibidas ventas: 15
+exportExcel.ts:271 [exportVentasPorRutaToExcel] Primera venta: {
+  "id": "15",
+  "folio": "15",
+  "fecha_iso": "2026-02-03T18:38:51.986Z",
+  "ruta_nombre": "Ruta 1",
+  "cliente_id": "2",
+  "cliente_nombre": "Misc. Flower",
+  "vendedor_id": "1",
+  "vendedor_nombre": "Juan",
+  "tipo_pago": "credito",
+  "total": 31,
+  "descuentos": 0,
+  "abono": 0,
+  "items": [
+    {
+      "producto": "Huevo",
+      "unidad": "KG",
+      "tipo_venta": "KG",
+      "cantidad": 1,
+      "kilos": 1,
+      "precio_unitario": 31,
+      "precioUnitario": 31,
+      "descuento_unitario": 0,
+      "descuentoUnitario": 0,
+      "subtotal": 31
+    }
+  ]
+}
+exportExcel.ts:308 [exportVentasPorRutaToExcel] Procesando ruta: Ruta 1 con 15 ventas
+exportExcel.ts:309 [exportVentasPorRutaToExcel] fechasOrdenadas: Array(2)
+exportExcel.ts:313 [exportVentasPorRutaToExcel] Fecha: 2026-02-03 ventas: 2
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 15 items: 1 Huevo
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 14 items: 1 Huevo
+exportExcel.ts:313 [exportVentasPorRutaToExcel] Fecha: 2026-02-02 ventas: 13
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 13 items: 1 Huevo
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 12 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 11 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 10 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 9 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 8 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 7 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 6 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 5 items: 1 Huevo
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 4 items: 1 Huevo
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 3 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 2 items: 1 Queso
+exportExcel.ts:317 [exportVentasPorRutaToExcel] Venta: 1 items: 1 Huevo
+exportExcel.ts:408 [exportVentasPorRutaToExcel] Filas generadas para Ruta 1 : 17
+exportExcel.ts:410 [exportVentasPorRutaToExcel] Primera fila: {"Folio":"15","Id":"2","Fecha":"03/02/2026","Hora":"12:38 p.m.","Cliente":"Misc. Flower","Producto":"Huevo","Precio":31,"Descuentos":0,"Cantidad Compra":"1.00 Kg","Tipo Pago":"CREDITO","Pago":0,"Abono":0,"Subtotal":31,"Total":31,"Saldo Anterior":0,"Saldo Actual":31,"":"","Cargo":"","Existencia Anterior":"","Existencia Actual":""}

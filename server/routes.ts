@@ -3,8 +3,31 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import webpush from "web-push";
 import { insertVentaSchema, insertVentaItemSchema, insertSyncEventSchema, insertDiscountRuleSchema, insertDiscountTierSchema } from "@shared/schema";
 import { z } from "zod";
+
+// VAPID keys for push notifications
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY?.trim();
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY?.trim();
+
+let pushNotificationsEnabled = false;
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_PUBLIC_KEY.length > 50) {
+  try {
+    webpush.setVapidDetails(
+      "mailto:admin@garloalimentos.com",
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    pushNotificationsEnabled = true;
+    console.log("Push notifications configured");
+  } catch (err) {
+    console.warn("VAPID keys invalid - push notifications disabled:", (err as Error).message);
+  }
+} else {
+  console.warn("VAPID keys not configured or invalid - push notifications disabled");
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-change-in-production";
 
@@ -169,6 +192,8 @@ export async function registerRoutes(
       venta: syncVentaSchema,
       items: z.array(insertVentaItemSchema),
       abono: z.number().min(0).optional().default(0),
+      pagoCliente: z.number().min(0).optional().default(0),
+      cambio: z.number().min(0).optional().default(0),
     })),
   });
 
@@ -296,40 +321,50 @@ export async function registerRoutes(
           }
           // Si abonoCliente >= totalVenta, es contado
           
-          // Agregar abono y tipoPago a la venta
+          // Obtener saldo ANTES de la venta
+          const saldoActualAntes = await storage.getSaldoCliente(event.venta.clienteId);
+          const saldoAnteriorVal = saldoActualAntes ? parseFloat(saldoActualAntes.saldo) : 0;
+          
+          // Calcular el nuevo saldo después de esta venta
+          let nuevoSaldoVal = saldoAnteriorVal;
+          if (creditoNuevo > 0) {
+            nuevoSaldoVal = saldoAnteriorVal + creditoNuevo;
+          } else if (abonoCliente > totalVenta) {
+            const excedente = abonoCliente - totalVenta;
+            nuevoSaldoVal = Math.max(0, saldoAnteriorVal - excedente);
+          }
+          
+          // Agregar abono, tipoPago y saldos a la venta
+          const pagoCliente = event.pagoCliente || 0;
+          const cambioVal = event.cambio || 0;
           const ventaConPago = {
             ...event.venta,
             abono: abonoCliente.toFixed(2),
             tipoPago,
+            saldoAnterior: saldoAnteriorVal.toFixed(2),
+            saldoFinal: nuevoSaldoVal.toFixed(2),
+            pagoCliente: pagoCliente.toFixed(2),
+            cambio: cambioVal.toFixed(2),
           };
           
           const ventaCreated = await storage.createVentaWithItems(ventaConPago, event.items);
           
-          if (creditoNuevo > 0) {
-            // Actualizar saldo del cliente (incrementar crédito)
-            const saldoActual = await storage.getSaldoCliente(event.venta.clienteId);
-            const saldoAnterior = saldoActual ? parseFloat(saldoActual.saldo) : 0;
-            const nuevoSaldo = saldoAnterior + creditoNuevo;
-            await storage.actualizarSaldoCliente(event.venta.clienteId, nuevoSaldo.toFixed(2));
-          } else if (abonoCliente > totalVenta) {
-            // El cliente pagó más que el total (posiblemente abonando a créditos anteriores)
-            const excedente = abonoCliente - totalVenta;
-            const saldoActual = await storage.getSaldoCliente(event.venta.clienteId);
-            const saldoAnterior = saldoActual ? parseFloat(saldoActual.saldo) : 0;
-            const nuevoSaldo = Math.max(0, saldoAnterior - excedente);
-            await storage.actualizarSaldoCliente(event.venta.clienteId, nuevoSaldo.toFixed(2));
+          // Actualizar saldo del cliente
+          if (nuevoSaldoVal !== saldoAnteriorVal) {
+            await storage.actualizarSaldoCliente(event.venta.clienteId, nuevoSaldoVal.toFixed(2));
           }
           
           await storage.markSyncEventProcessed(event.eventId);
           
           // Obtener saldo final para retornar al cliente
-          const saldoFinal = await storage.getSaldoCliente(event.venta.clienteId);
+          const saldoFinalDb = await storage.getSaldoCliente(event.venta.clienteId);
           
           results.push({
             eventId: event.eventId,
             status: "success",
             ventaId: ventaCreated.id,
-            saldoFinal: saldoFinal?.saldo || "0",
+            saldo_anterior: saldoAnteriorVal.toFixed(2),
+            saldo_final: saldoFinalDb?.saldo || nuevoSaldoVal.toFixed(2),
           });
         } catch (error: any) {
           await storage.markSyncEventProcessed(event.eventId, error.message);
@@ -356,11 +391,41 @@ export async function registerRoutes(
       
       const parsedLimit = limit ? parseInt(limit as string) : 100;
 
-      let ventas;
+      let ventas: any[];
+      let abonosAsVentas: any[] = [];
       
       if (usuario.rol === "vendedor") {
-        // Vendedores solo ven sus propias ventas
+        // Vendedores ven sus propias ventas + abonos
         ventas = await storage.getVentasByVendedor(usuario.id, parsedLimit);
+        
+        // Obtener abonos del vendedor y convertirlos a formato de venta
+        const abonosVendedor = await storage.getAbonosByUsuario(usuario.id, parsedLimit);
+        abonosAsVentas = abonosVendedor.map(abono => ({
+          id: `abono_${abono.id}`,
+          clienteId: abono.clienteId,
+          usuarioId: abono.usuarioId,
+          tipoPago: "abono",
+          total: "0",
+          descuentos: "0",
+          abono: abono.monto,
+          saldoAnterior: abono.saldoAnterior,
+          saldoFinal: abono.saldoNuevo,
+          fechaVenta: abono.fecha,
+          vendedorNombre: abono.usuarioNombre,
+          clienteNombre: abono.clienteNombre,
+          rutaId: abono.rutaId,
+          rutaNombre: abono.rutaNombre,
+          items: [{
+            productoNombre: "ABONO",
+            productoUnidad: "PIEZA",
+            cantidad: 1,
+            piezas: 1,
+            kilos: 0,
+            precioUnitario: abono.monto,
+            descuentoUnitario: "0",
+            subtotal: abono.monto,
+          }],
+        }));
       } else if (rutaId) {
         // Auditor/admin filtran por ruta
         ventas = await storage.getVentasByRuta(parseInt(rutaId as string), parsedLimit);
@@ -375,7 +440,14 @@ export async function registerRoutes(
         ventas = await storage.getVentasByVendedor(usuario.id, parsedLimit);
       }
 
-      res.json({ ventas });
+      // Combinar ventas + abonos y ordenar por fecha descendente
+      const allTransactions = [...ventas, ...abonosAsVentas].sort((a, b) => {
+        const fechaA = new Date(a.fechaVenta).getTime();
+        const fechaB = new Date(b.fechaVenta).getTime();
+        return fechaB - fechaA;
+      });
+
+      res.json({ ventas: allTransactions });
     } catch (error) {
       console.error("Ventas error:", error);
       res.status(500).json({ error: "Error obteniendo ventas" });
@@ -394,6 +466,7 @@ export async function registerRoutes(
       for (const ruta of rutas) {
         const clientes = await storage.getClientesByRuta(ruta.id);
         const clienteMap = new Map(clientes.map(c => [c.id, c.nombre]));
+        const clienteRutaMap = new Map(clientes.map(c => [c.id, ruta.id]));
         
         const ventas = await storage.getVentasByRuta(ruta.id, parsedLimit);
         
@@ -411,9 +484,11 @@ export async function registerRoutes(
           
           // Items already included from getVentasByRuta with productoNombre
           const mappedItems = ((venta as any).items || []).map((item: any) => ({
+            productoId: item.productoId,
             productoNombre: item.productoNombre || "",
             unidad: item.productoUnidad || "PIEZA",
             cantidad: item.cantidad,
+            piezas: item.piezas,
             kilos: item.kilos,
             precioUnitario: item.precioUnitario,
             descuentoUnitario: item.descuentoUnitario,
@@ -428,7 +503,54 @@ export async function registerRoutes(
             items: mappedItems,
           });
         }
+        
+        // Incluir abonos como transacciones separadas
+        for (const cliente of clientes) {
+          const abonos = await storage.getAbonosByCliente(cliente.id);
+          for (const abono of abonos) {
+            const d = new Date(abono.fecha);
+            const fechaAbonoStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            
+            if (fechaDesde && fechaHasta) {
+              if (fechaAbonoStr < String(fechaDesde) || fechaAbonoStr > String(fechaHasta)) continue;
+            } else if (fechaDesde) {
+              if (fechaAbonoStr < String(fechaDesde)) continue;
+            } else if (fechaHasta) {
+              if (fechaAbonoStr > String(fechaHasta)) continue;
+            }
+            
+            allVentas.push({
+              id: `abono_${abono.id}`,
+              clienteId: cliente.id,
+              usuarioId: abono.usuarioId,
+              tipoPago: "abono",
+              total: "0",
+              descuentos: "0",
+              abono: abono.monto,
+              saldoAnterior: abono.saldoAnterior,
+              saldoFinal: abono.saldoNuevo,
+              fechaVenta: abono.fecha,
+              fechaIso: abono.fecha.toISOString(),
+              ruta_nombre: ruta.nombre,
+              cliente_nombre: cliente.nombre,
+              vendedorNombre: abono.usuarioNombre,
+              items: [{
+                productoNombre: "ABONO",
+                unidad: "PIEZA",
+                cantidad: 1,
+                piezas: 1,
+                kilos: 0,
+                precioUnitario: abono.monto,
+                descuentoUnitario: "0",
+                subtotal: abono.monto,
+              }],
+            });
+          }
+        }
       }
+      
+      // Ordenar por fecha descendente
+      allVentas.sort((a, b) => new Date(b.fechaIso).getTime() - new Date(a.fechaIso).getTime());
       
       res.json({ ventas: allVentas });
     } catch (error) {
@@ -787,6 +909,39 @@ export async function registerRoutes(
     }
   });
 
+  // Actualizar cliente (admin only)
+  const updateClienteSchema = z.object({
+    nombre: z.string().min(1, "Nombre requerido").optional(),
+    rutaId: z.number().int().positive("Ruta requerida").optional(),
+    direccion: z.string().nullable().optional(),
+    telefono: z.string().nullable().optional(),
+    activo: z.boolean().optional(),
+  });
+
+  app.put("/api/clientes/:id", authMiddleware, requireRole("admin"), async (req: AuthRequest, res) => {
+    try {
+      const clienteId = parseInt(String(req.params.id));
+      if (isNaN(clienteId)) {
+        return res.status(400).json({ error: "ID de cliente inválido" });
+      }
+
+      const parsed = updateClienteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message || "Datos inválidos" });
+      }
+
+      const cliente = await storage.updateCliente(clienteId, parsed.data);
+      if (!cliente) {
+        return res.status(404).json({ error: "Cliente no encontrado" });
+      }
+
+      res.json({ cliente });
+    } catch (error) {
+      console.error("Update cliente error:", error);
+      res.status(500).json({ error: "Error actualizando cliente" });
+    }
+  });
+
   // ===== BODEGA (admin/auditor) =====
   app.get("/api/bodega", authMiddleware, requireRole("admin", "auditor"), async (req, res) => {
     try {
@@ -960,6 +1115,38 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get movimientos error:", error);
       res.status(500).json({ error: "Error obteniendo movimientos" });
+    }
+  });
+  
+  // Movimientos por ruta y fecha (para exportación Excel)
+  app.get("/api/movimientos/ruta/:rutaId", authMiddleware, requireRole("admin", "auditor"), async (req, res) => {
+    try {
+      const rutaId = parseInt(String(req.params.rutaId));
+      const fechaDesde = req.query.fechaDesde as string | undefined;
+      const fechaHasta = req.query.fechaHasta as string | undefined;
+      
+      const movimientos = await storage.getMovimientosStock(500);
+      
+      // Filtrar por ruta y fecha
+      const movimientosFiltrados = movimientos.filter(m => {
+        if (m.rutaId !== rutaId) return false;
+        if (!fechaDesde && !fechaHasta) return true;
+        
+        const fechaMov = new Date(m.fecha).toISOString().split('T')[0];
+        if (fechaDesde && fechaHasta) {
+          return fechaMov >= fechaDesde && fechaMov <= fechaHasta;
+        } else if (fechaDesde) {
+          return fechaMov >= fechaDesde;
+        } else if (fechaHasta) {
+          return fechaMov <= fechaHasta;
+        }
+        return true;
+      });
+      
+      res.json({ movimientos: movimientosFiltrados });
+    } catch (error) {
+      console.error("Get movimientos ruta error:", error);
+      res.status(500).json({ error: "Error obteniendo movimientos de ruta" });
     }
   });
 
@@ -1390,6 +1577,182 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Backup error:", error);
       res.status(500).json({ error: "Error generando backup" });
+    }
+  });
+
+  // Historial de precios - listar por producto
+  app.get("/api/historial-precios/:productoId", authMiddleware, requireRole("admin"), async (req, res) => {
+    try {
+      const productoIdParam = req.params.productoId;
+      const productoId = parseInt(String(productoIdParam));
+      const historial = await storage.getHistorialPreciosByProducto(productoId);
+      res.json({ historial });
+    } catch (error) {
+      console.error("Historial precios error:", error);
+      res.status(500).json({ error: "Error obteniendo historial de precios" });
+    }
+  });
+
+  // Reporte de ventas del día en JSON (para generar PDF en cliente)
+  app.get("/api/reportes/ventas-dia", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const fechaParam = req.query.fecha;
+      const rutaIdParam = req.query.rutaId;
+      const fecha = typeof fechaParam === 'string' ? fechaParam : undefined;
+      const rutaId = typeof rutaIdParam === 'string' ? parseInt(rutaIdParam) : undefined;
+      
+      const targetDate = fecha ? new Date(fecha) : new Date();
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      let ventas: any[] = [];
+      const rol = req.usuario?.rol;
+      
+      if (rol === "vendedor") {
+        ventas = await storage.getVentasByVendedor(req.usuario!.id, 1000);
+      } else if (rutaId) {
+        ventas = await storage.getVentasByRuta(rutaId, 1000);
+      } else {
+        const rutas = await storage.getRutas();
+        for (const ruta of rutas) {
+          const ventasRuta = await storage.getVentasByRuta(ruta.id, 500);
+          ventas.push(...ventasRuta);
+        }
+      }
+
+      // Filtrar por fecha
+      const ventasDia = ventas.filter(v => {
+        const fechaVenta = new Date(v.fechaVenta);
+        return fechaVenta >= startOfDay && fechaVenta <= endOfDay;
+      });
+
+      // Calcular totales
+      const totalVentas = ventasDia.length;
+      const totalMonto = ventasDia.reduce((sum, v) => sum + parseFloat(v.total || "0"), 0);
+      const totalDescuento = ventasDia.reduce((sum, v) => sum + parseFloat(v.descuento || "0"), 0);
+
+      // Agrupar por producto
+      const productosTotales: Record<number, { nombre: string; cantidad: number; kilos: number; total: number }> = {};
+      for (const venta of ventasDia) {
+        if (venta.items) {
+          for (const item of venta.items) {
+            const prodId = item.productoId;
+            if (!productosTotales[prodId]) {
+              productosTotales[prodId] = { nombre: item.productoNombre || `Producto ${prodId}`, cantidad: 0, kilos: 0, total: 0 };
+            }
+            productosTotales[prodId].cantidad += parseFloat(item.piezas || item.cantidad || "0");
+            productosTotales[prodId].kilos += parseFloat(item.kilos || "0");
+            productosTotales[prodId].total += parseFloat(item.subtotal || "0");
+          }
+        }
+      }
+
+      res.json({
+        fecha: targetDate.toISOString().split('T')[0],
+        rutaId: rutaId || null,
+        usuario: req.usuario?.username,
+        resumen: {
+          totalVentas,
+          totalMonto,
+          totalDescuento,
+        },
+        productosTotales: Object.values(productosTotales),
+        ventas: ventasDia.map(v => ({
+          id: v.id,
+          clienteNombre: v.clienteNombre,
+          total: v.total,
+          tipoPago: v.tipoPago,
+          itemsCount: v.items?.length || 0,
+        })),
+      });
+    } catch (error) {
+      console.error("Reporte ventas dia error:", error);
+      res.status(500).json({ error: "Error generando reporte" });
+    }
+  });
+
+  // Push Notifications - get public VAPID key
+  app.get("/api/push/vapid-key", authMiddleware, (req, res) => {
+    if (!pushNotificationsEnabled) {
+      return res.status(503).json({ error: "Notificaciones push no configuradas" });
+    }
+    res.json({ publicKey: VAPID_PUBLIC_KEY });
+  });
+
+  // Push Notifications - subscribe
+  app.post("/api/push/subscribe", authMiddleware, async (req: AuthRequest, res) => {
+    if (!pushNotificationsEnabled) {
+      return res.status(503).json({ error: "Notificaciones push no configuradas" });
+    }
+    try {
+      const { endpoint, keys } = req.body;
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        return res.status(400).json({ error: "Suscripción inválida" });
+      }
+      
+      const usuarioId = req.usuario!.id;
+      
+      await storage.savePushSubscription(usuarioId, endpoint, keys.p256dh, keys.auth);
+      
+      res.json({ success: true, message: "Suscripción registrada" });
+    } catch (error) {
+      console.error("Push subscribe error:", error);
+      res.status(500).json({ error: "Error registrando suscripción" });
+    }
+  });
+
+  // Push Notifications - unsubscribe
+  app.post("/api/push/unsubscribe", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ error: "Endpoint requerido" });
+      }
+      
+      await storage.deletePushSubscription(endpoint);
+      
+      res.json({ success: true, message: "Suscripción eliminada" });
+    } catch (error) {
+      console.error("Push unsubscribe error:", error);
+      res.status(500).json({ error: "Error eliminando suscripción" });
+    }
+  });
+
+  // Push Notifications - send test notification (admin only)
+  app.post("/api/push/test", authMiddleware, requireRole("admin"), async (req: AuthRequest, res) => {
+    if (!pushNotificationsEnabled) {
+      return res.status(503).json({ error: "Notificaciones push no configuradas" });
+    }
+    try {
+      const { usuarioId, title, body } = req.body;
+      
+      const subscriptions = await storage.getPushSubscriptionsByUsuario(usuarioId || req.usuario!.id);
+      
+      const payload = JSON.stringify({
+        title: title || "Test de notificación",
+        body: body || "Esta es una prueba de notificaciones push",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/badge-72.png",
+      });
+      
+      const results = await Promise.allSettled(
+        subscriptions.map(sub => 
+          webpush.sendNotification({
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth }
+          }, payload)
+        )
+      );
+      
+      const sent = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      res.json({ success: true, sent, failed });
+    } catch (error) {
+      console.error("Push test error:", error);
+      res.status(500).json({ error: "Error enviando notificación" });
     }
   });
 

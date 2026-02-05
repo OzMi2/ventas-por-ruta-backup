@@ -1,0 +1,70 @@
+Analiza todo el repositorio actual de esta aplicación (frontend y backend) y responde solo con información del código existente, no con teoría general.
+
+Necesito mejorar el modo offline para que una ruta pueda quedarse sin conexión sin perder el front ni los datos, y que al reconectar se sincronice correctamente con el servidor.
+
+Por favor, indícame lo siguiente con archivos y líneas exactas:
+
+1️⃣ Service Worker / PWA
+
+¿Dónde se define el service worker o la configuración PWA?
+(archivo exacto: sw.js, service-worker.ts, vite-plugin-pwa, etc.)
+
+¿Qué rutas se están cacheando actualmente?
+
+Confirma explícitamente si /api/* se está cacheando y con qué estrategia (cache-first, network-first, stale-while-revalidate).
+
+Indica si los POST (/api/sync/push, /api/ventas) pasan o no por el cache.
+
+2️⃣ Bootstrap de datos (modo offline)
+
+¿Dónde se consume GET /api/me/bootstrap en el frontend?
+
+¿Dónde se guardan esos datos localmente (LocalStorage, IndexedDB, memoria)?
+
+¿Se reutiliza ese bootstrap cuando la app arranca sin conexión?
+
+3️⃣ Ventas offline
+
+¿Dónde se guardan las ventas cuando no hay conexión?
+
+¿Qué estructura de datos se usa (key, schema)?
+
+¿Cómo y cuándo se dispara POST /api/sync/push?
+
+¿Se limpia la cola offline después de un sync exitoso?
+
+4️⃣ Inventario / stock por ruta
+
+¿De dónde sale el stock que se muestra en pantalla?
+
+¿Se recalcula el stock local restando ventas offline?
+
+¿Qué ocurre con el inventario cuando vuelve la conexión?
+
+5️⃣ Refetch / actualización al reconectar
+
+¿Existe algún listener de online / offline?
+
+¿Se ejecuta un refetch automático del bootstrap o inventario al reconectar?
+
+¿Se invalidan queries (TanStack Query) después de sincronizar?
+
+6️⃣ Persistencia de estado
+
+¿TanStack Query está persistiendo cache en disco?
+
+¿Qué datos se pierden si el navegador se cierra sin conexión?
+
+7️⃣ Problemas detectados
+
+Enumera problemas concretos que puedan causar:
+
+datos “pegados” que no se actualizan,
+
+stock incorrecto,
+
+ventas duplicadas o perdidas,
+
+PWA que no refleja datos reales al reconectar.
+
+Responde de forma estructurada y técnica, citando archivos y funciones reales del proyecto.

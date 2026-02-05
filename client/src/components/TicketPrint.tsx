@@ -2,7 +2,8 @@ import * as React from "react";
 import type { HistorialVenta } from "@/services/historial";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PrinterIcon, XIcon } from "lucide-react";
+import { PrinterIcon, XIcon, ShareIcon, HomeIcon, MessageCircleIcon } from "lucide-react";
+import html2canvas from "html2canvas";
 
 function n(v: any) {
   const num = Number(v);
@@ -42,11 +43,13 @@ function getTipoPagoLabel(tipo: string) {
   if (t === "contado") return "Venta a Contado";
   if (t === "credito") return "Venta a Crédito";
   if (t === "parcial" || t === "mixto") return "Venta Mixta";
+  if (t === "abono") return "ABONO";
   return tipo?.toUpperCase() || "";
 }
 
 export function TicketPrint({ venta }: { venta: HistorialVenta }) {
   const chargedQty = (it: any) => (it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos));
+  const isAbono = venta.tipo_pago?.toLowerCase() === "abono";
 
   return (
     <div className="ticket" data-testid="ticket-root">
@@ -54,12 +57,12 @@ export function TicketPrint({ venta }: { venta: HistorialVenta }) {
       <div className="ticket__center ticket__muted text-[9px]" data-testid="ticket-address">
         Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289
       </div>
-      <div className="ticket__center ticket__muted" data-testid="ticket-phone">Tel: 871-1865-648</div>
+      <div className="ticket__center ticket__muted" data-testid="ticket-phone">Telefono: 618-1359-407</div>
 
       <div className="ticket__hr" />
 
       <div className="ticket__row" data-testid="ticket-row-ruta">
-        <span className="ticket__strong">Ruta "{(venta as any).ruta_nombre || venta.folio || "—"}"</span>
+        <span className="ticket__strong">Ruta "{(venta as any).ruta_nombre || "—"}"</span>
       </div>
       <div className="ticket__row" data-testid="ticket-row-vendedor">
         <span>Le atendió:</span>
@@ -70,7 +73,7 @@ export function TicketPrint({ venta }: { venta: HistorialVenta }) {
         <span className="ticket__right ticket__strong">{venta.cliente_id} – {venta.cliente_nombre}</span>
       </div>
       <div className="ticket__row" data-testid="ticket-row-fecha">
-        <span>Venta:</span>
+        <span>{isAbono ? "Abono:" : "Venta:"}</span>
         <span>{fmtDateTicket(venta.fecha_iso)}</span>
       </div>
       <div className="ticket__row" data-testid="ticket-row-tipo-pago">
@@ -79,75 +82,116 @@ export function TicketPrint({ venta }: { venta: HistorialVenta }) {
 
       <div className="ticket__hr" />
 
-      <div className="ticket__center ticket__strong" data-testid="ticket-items-title">NOTA DE VENTA</div>
-      <table className="ticket__table" data-testid="ticket-items">
-        <thead>
-          <tr>
-            <th className="text-left">DESC</th>
-            <th>UDM</th>
-            <th>PZ</th>
-            <th>KG</th>
-            <th>PRECIO</th>
-            <th className="text-right">SUBTO</th>
-          </tr>
-        </thead>
-        <tbody>
-          {venta.items.map((it, idx) => {
-            const qty = chargedQty(it);
-            const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
-            const priceBase = n(it.precio_unitario);
-            const dto = n(it.descuento_unitario);
-            const priceFinal = Math.max(priceBase - dto, 0);
-            const lineTotal = qty * priceFinal;
-            const piezas = it.tipo_venta === "unidad" ? qty : ((it as any).piezas || 0);
-            const kilos = it.tipo_venta === "unidad" ? 0 : qty;
-
-            return (
-              <tr key={idx} data-testid={`ticket-item-${idx}`}>
-                <td className="text-left">{it.producto}</td>
-                <td>{unit}</td>
-                <td>{n(piezas).toFixed(0)}</td>
-                <td>{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
-                <td>{fmtMoney(priceFinal)}</td>
-                <td className="text-right">{fmtMoney(lineTotal)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      <div className="ticket__hr-double" />
-
-      <div className="ticket__row" data-testid="ticket-row-subtotal">
-        <span>SUBTOTAL:</span>
-        <span>{fmtMoney(venta.subtotal_base)}</span>
-      </div>
-      {n(venta.descuentos) > 0 && (
-        <div className="ticket__row" data-testid="ticket-row-descuentos">
-          <span>Descuento:</span>
-          <span>-{fmtMoney(venta.descuentos)}</span>
-        </div>
-      )}
-      <div className="ticket__row ticket__total" data-testid="ticket-row-total">
-        <span>TOTAL:</span>
-        <span>{fmtMoney(venta.total)}</span>
-      </div>
-
-      {(venta.tipo_pago === "credito" || venta.tipo_pago === "parcial") && (
+      {isAbono ? (
         <>
+          <div className="ticket__center ticket__strong" data-testid="ticket-abono-title">RECIBO DE ABONO</div>
           <div className="ticket__hr" />
-          <div className="ticket__row">
-            <span>Abono:</span>
+          <div className="ticket__row ticket__strong" data-testid="ticket-abono-monto">
+            <span>Monto abonado:</span>
             <span>{fmtMoney(venta.abono)}</span>
           </div>
-          <div className="ticket__row">
+          <div className="ticket__row" data-testid="ticket-row-saldo-anterior">
             <span>Saldo anterior:</span>
             <span>{fmtMoney(venta.saldo_anterior)}</span>
           </div>
-          <div className="ticket__row ticket__strong">
-            <span>Saldo final:</span>
+          <div className="ticket__row ticket__strong" data-testid="ticket-row-saldo-actual">
+            <span>Saldo actual:</span>
             <span>{fmtMoney(venta.saldo_final)}</span>
           </div>
+          {n((venta as any).pago_cliente) > 0 && (
+            <>
+              <div className="ticket__hr" />
+              <div className="ticket__row" data-testid="ticket-row-pago-cliente">
+                <span>Pago:</span>
+                <span>{fmtMoney((venta as any).pago_cliente)}</span>
+              </div>
+              {n((venta as any).cambio) > 0 && (
+                <div className="ticket__row ticket__strong" data-testid="ticket-row-cambio">
+                  <span>Cambio:</span>
+                  <span>{fmtMoney((venta as any).cambio)}</span>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="ticket__center ticket__strong" data-testid="ticket-items-title">NOTA DE VENTA</div>
+          <table className="ticket__table" data-testid="ticket-items">
+            <thead>
+              <tr>
+                <th className="text-left">DESCRIPCION</th>
+                <th>UDM</th>
+                <th>PZ</th>
+                <th>CANT KG</th>
+                <th>PRECIO</th>
+                <th className="text-right">SUBTO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {venta.items.map((it, idx) => {
+                const isMixto = (it as any).unidad === "MIXTO";
+                const qty = chargedQty(it);
+                const unit = isMixto ? "KG" : (it.tipo_venta === "unidad" ? "PZ" : "KG");
+                const priceBase = n(it.precio_unitario);
+                const lineSubtotal = qty * priceBase;
+                const piezas = isMixto ? n((it as any).piezas) : (it.tipo_venta === "unidad" ? qty : 0);
+                const kilos = isMixto ? n(it.kilos) : (it.tipo_venta === "unidad" ? 0 : qty);
+
+                return (
+                  <tr key={idx} data-testid={`ticket-item-${idx}`}>
+                    <td className="text-left">{it.producto}</td>
+                    <td>{unit}</td>
+                    <td>{n(piezas).toFixed(0)}</td>
+                    <td>{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
+                    <td>{fmtMoney(priceBase)}</td>
+                    <td className="text-right">{fmtMoney(lineSubtotal)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="ticket__hr-double" />
+
+          <div className="ticket__center ticket__strong" style={{ marginBottom: '4px' }}>TOTAL:</div>
+          <div className="ticket__row" data-testid="ticket-row-subtotal">
+            <span>SUBTOTAL:</span>
+            <span>{fmtMoney(venta.subtotal_base)}</span>
+          </div>
+          {n(venta.descuentos) > 0 && (
+            <div className="ticket__row" data-testid="ticket-row-descuentos">
+              <span>Descuento:</span>
+              <span>-{fmtMoney(venta.descuentos)}</span>
+            </div>
+          )}
+          <div className="ticket__row ticket__strong" data-testid="ticket-row-total">
+            <span>Total:</span>
+            <span>{fmtMoney(venta.total)}</span>
+          </div>
+          <div className="ticket__row" data-testid="ticket-row-saldo-anterior">
+            <span>Saldo anterior:</span>
+            <span>{fmtMoney(venta.saldo_anterior)}</span>
+          </div>
+          <div className="ticket__row ticket__strong" data-testid="ticket-row-saldo-actual">
+            <span>Saldo actual:</span>
+            <span>{fmtMoney(venta.saldo_final)}</span>
+          </div>
+          {n((venta as any).pago_cliente) > 0 && (
+            <>
+              <div className="ticket__hr" />
+              <div className="ticket__row" data-testid="ticket-row-pago-cliente-venta">
+                <span>Pago:</span>
+                <span>{fmtMoney((venta as any).pago_cliente)}</span>
+              </div>
+              {n((venta as any).cambio) > 0 && (
+                <div className="ticket__row ticket__strong" data-testid="ticket-row-cambio-venta">
+                  <span>Cambio:</span>
+                  <span>{fmtMoney((venta as any).cambio)}</span>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
 
@@ -155,10 +199,6 @@ export function TicketPrint({ venta }: { venta: HistorialVenta }) {
 
       <div className="ticket__center ticket__muted" style={{ marginTop: '20px' }}>
         <div>Firma: ___________________</div>
-      </div>
-
-      <div className="ticket__center ticket__muted" style={{ marginTop: '15px' }} data-testid="ticket-footer">
-        Gracias por su compra
       </div>
     </div>
   );
@@ -270,44 +310,85 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
     if (t === "contado") return "Venta a Contado";
     if (t === "credito") return "Venta a Crédito";
     if (t === "parcial" || t === "mixto") return "Venta Mixta";
+    if (t === "abono") return "ABONO";
     return (tipo || "").toUpperCase();
   }
 
+  const isAbonoPrint = (v.tipo_pago || "").toLowerCase() === "abono";
+
   const itemsHtml = (v.items || []).map((it: any) => {
     const q = qty(it);
-    const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
+    const unidad = (it.unidad || "").toUpperCase();
+    const isMixto = unidad === "MIXTO";
+    const unit = it.tipo_venta === "unidad" ? "PZ" : (isMixto ? "MIXTO" : "KG");
     const base = num(it.precio_unitario);
-    const dto = num(it.descuento_unitario);
-    const final = Math.max(base - dto, 0);
-    const lineTotal = q * final;
-    const piezas = it.tipo_venta === "unidad" ? q : (it.piezas || 0);
-    const kilos = it.tipo_venta === "unidad" ? 0 : q;
+    const lineSubtotal = q * base;
+    // Para MIXTO usar campos piezas y kilos separados
+    const piezas = isMixto ? num(it.piezas) : (it.tipo_venta === "unidad" ? q : 0);
+    const kilos = isMixto ? num(it.kilos) : (it.tipo_venta === "unidad" ? 0 : q);
 
     return `<tr>
       <td>${esc(it.producto)}</td>
       <td>${unit}</td>
       <td>${num(piezas).toFixed(0)}</td>
       <td>${kilos > 0 ? kilos.toFixed(3) : "-"}</td>
-      <td>${money(final)}</td>
-      <td>${money(lineTotal)}</td>
+      <td>${money(base)}</td>
+      <td>${money(lineSubtotal)}</td>
     </tr>`;
   }).join("");
 
+  const pagoClienteNum = num((v as any).pago_cliente);
+  const cambioNum = num((v as any).cambio);
+  const pagoHtml = pagoClienteNum > 0 ? `
+    <div class="ticket__hr"></div>
+    <div class="ticket__row"><span>Pago:</span><span>${money(pagoClienteNum)}</span></div>
+    ${cambioNum > 0 ? `<div class="ticket__row ticket__strong"><span>Cambio:</span><span>${money(cambioNum)}</span></div>` : ""}
+  ` : "";
+  
   const creditoHtml = (v.tipo_pago === "credito" || v.tipo_pago === "parcial") ? `
     <div class="ticket__hr"></div>
     <div class="ticket__row"><span>Abono:</span><span>${money(v.abono)}</span></div>
     <div class="ticket__row"><span>Saldo anterior:</span><span>${money(v.saldo_anterior)}</span></div>
     <div class="ticket__row ticket__strong"><span>Saldo final:</span><span>${money(v.saldo_final)}</span></div>
-  ` : "";
+    ${pagoHtml}
+  ` : (pagoClienteNum > 0 ? `
+    <div class="ticket__hr"></div>
+    <div class="ticket__row"><span>Pago:</span><span>${money(pagoClienteNum)}</span></div>
+    ${cambioNum > 0 ? `<div class="ticket__row ticket__strong"><span>Cambio:</span><span>${money(cambioNum)}</span></div>` : ""}
+  ` : "");
 
-  root.innerHTML = `
+  const abonoHtml = isAbonoPrint ? `
     <div class="ticket">
       <div class="ticket__center ticket__title">Garlo Alimentos</div>
       <div class="ticket__center ticket__address ticket__muted">Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289</div>
-      <div class="ticket__center ticket__muted">Tel: 871-1865-648</div>
+      <div class="ticket__center ticket__muted">Tel: 618-1359-407</div>
       <div class="ticket__hr"></div>
 
-      <div class="ticket__row"><span class="ticket__strong">Ruta "${esc(v.ruta_nombre || v.folio || "—")}"</span></div>
+      <div class="ticket__row"><span class="ticket__strong">Ruta "${esc(v.ruta_nombre || "—")}"</span></div>
+      <div class="ticket__row"><span>Le atendió:</span><span>${esc(v.vendedor_nombre || "")}</span></div>
+      <div class="ticket__row"><span>Cliente:</span><span class="ticket__strong">${esc(v.cliente_id || "")} – ${esc(v.cliente_nombre || "")}</span></div>
+      <div class="ticket__row"><span>Abono:</span><span>${fmtTicket(v.fecha_iso)}</span></div>
+      <div class="ticket__row"><span class="ticket__strong">${tipoPagoLabel(v.tipo_pago)}</span></div>
+
+      <div class="ticket__hr"></div>
+      <div class="ticket__center ticket__strong">RECIBO DE ABONO</div>
+      <div class="ticket__hr"></div>
+      <div class="ticket__row ticket__strong"><span>Monto abonado:</span><span>${money(v.abono)}</span></div>
+      <div class="ticket__row"><span>Saldo anterior:</span><span>${money(v.saldo_anterior)}</span></div>
+      <div class="ticket__row ticket__strong"><span>Saldo actual:</span><span>${money(v.saldo_final)}</span></div>
+
+      <div class="ticket__hr"></div>
+      <div class="ticket__firma">Firma: ___________________</div>
+      <div class="ticket__center ticket__muted" style="margin-top:12px;">Gracias por su pago</div>
+    </div>
+  ` : `
+    <div class="ticket">
+      <div class="ticket__center ticket__title">Garlo Alimentos</div>
+      <div class="ticket__center ticket__address ticket__muted">Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289</div>
+      <div class="ticket__center ticket__muted">Tel: 618-1359-407</div>
+      <div class="ticket__hr"></div>
+
+      <div class="ticket__row"><span class="ticket__strong">Ruta "${esc(v.ruta_nombre || "—")}"</span></div>
       <div class="ticket__row"><span>Le atendió:</span><span>${esc(v.vendedor_nombre || "")}</span></div>
       <div class="ticket__row"><span>Cliente:</span><span class="ticket__strong">${esc(v.cliente_id || "")} – ${esc(v.cliente_nombre || "")}</span></div>
       <div class="ticket__row"><span>Venta:</span><span>${fmtTicket(v.fecha_iso)}</span></div>
@@ -335,6 +416,8 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
     </div>
   `;
 
+  root.innerHTML = abonoHtml;
+
   w.focus();
   setTimeout(() => w.print(), 250);
 }
@@ -344,10 +427,120 @@ interface TicketModalProps {
   venta: HistorialVenta | null;
   open: boolean;
   onClose: () => void;
+  isAbono?: boolean;
+  onVolver?: () => void;
 }
 
-export function TicketModal({ venta, open, onClose }: TicketModalProps) {
+export function TicketModal({ venta, open, onClose, isAbono, onVolver }: TicketModalProps) {
   const ticketRef = React.useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = React.useState(false);
+
+  const handleShare = async () => {
+    if (!ticketRef.current) return;
+    setSharing(true);
+    try {
+      const canvas = await html2canvas(ticketRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          setSharing(false);
+          return;
+        }
+        
+        const file = new File([blob], `ticket_${isAbono ? 'abono' : 'venta'}_${Date.now()}.png`, { type: "image/png" });
+        
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: isAbono ? "Ticket de Abono" : "Ticket de Venta",
+              text: `Ticket ${isAbono ? 'de abono' : 'de venta'} - Garlo Alimentos`,
+            });
+          } catch (err) {
+            console.log("Share cancelled or failed:", err);
+          }
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `ticket_${isAbono ? 'abono' : 'venta'}_${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+        setSharing(false);
+      }, "image/png");
+    } catch (err) {
+      console.error("Error sharing:", err);
+      setSharing(false);
+    }
+  };
+
+  const generateTicketText = () => {
+    if (!venta) return "";
+    
+    const lines: string[] = [];
+    lines.push("🧾 *GARLO ALIMENTOS*");
+    lines.push("Filemon Valenzuela #410");
+    lines.push("Tel: 618-1359-407");
+    lines.push("─────────────────");
+    lines.push(`📍 Ruta: ${(venta as any).ruta_nombre || "—"}`);
+    lines.push(`👤 Cliente: ${venta.cliente_nombre}`);
+    lines.push(`📅 Fecha: ${fmtDateTicket(venta.fecha_iso)}`);
+    lines.push(`💳 ${getTipoPagoLabel(venta.tipo_pago)}`);
+    lines.push("─────────────────");
+    
+    if (isAbono) {
+      lines.push("*RECIBO DE ABONO*");
+      lines.push(`Monto: *${fmtMoney(venta.abono)}*`);
+      lines.push(`Saldo anterior: ${fmtMoney(venta.saldo_anterior)}`);
+      lines.push(`Saldo actual: *${fmtMoney(venta.saldo_final)}*`);
+    } else {
+      lines.push("*NOTA DE VENTA*");
+      venta.items.forEach((it) => {
+        const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
+        const unit = it.tipo_venta === "unidad" ? "pz" : "kg";
+        const subtotal = qty * n(it.precio_unitario);
+        lines.push(`• ${it.producto}`);
+        lines.push(`  ${qty.toFixed(it.tipo_venta === "unidad" ? 0 : 3)}${unit} x ${fmtMoney(it.precio_unitario)} = ${fmtMoney(subtotal)}`);
+      });
+      lines.push("─────────────────");
+      lines.push(`Subtotal: ${fmtMoney(venta.subtotal_base)}`);
+      if (n(venta.descuentos) > 0) {
+        lines.push(`Descuento: -${fmtMoney(venta.descuentos)}`);
+      }
+      lines.push(`*TOTAL: ${fmtMoney(venta.total)}*`);
+      lines.push(`Saldo anterior: ${fmtMoney(venta.saldo_anterior)}`);
+      lines.push(`Saldo actual: *${fmtMoney(venta.saldo_final)}*`);
+    }
+    
+    lines.push("─────────────────");
+    lines.push("¡Gracias por su compra! 🙏");
+    
+    return lines.join("\n");
+  };
+
+  const handleWhatsAppShare = async () => {
+    const ticketText = generateTicketText();
+    const encodedText = encodeURIComponent(ticketText);
+    
+    const clientPhone = (venta as any)?.cliente_telefono?.replace(/\D/g, "");
+    
+    let whatsappUrl: string;
+    if (clientPhone && clientPhone.length >= 10) {
+      const phoneWithCode = clientPhone.startsWith("52") ? clientPhone : `52${clientPhone}`;
+      whatsappUrl = `https://wa.me/${phoneWithCode}?text=${encodedText}`;
+    } else {
+      whatsappUrl = `https://wa.me/?text=${encodedText}`;
+    }
+    
+    window.open(whatsappUrl, "_blank");
+  };
 
   const handlePrint = () => {
     if (!ticketRef.current) return;
@@ -402,9 +595,9 @@ export function TicketModal({ venta, open, onClose }: TicketModalProps) {
       <DialogContent className="max-w-[340px] max-h-[90vh] overflow-y-auto rounded-3xl p-0">
         <DialogHeader className="p-4 pb-0">
           <DialogTitle className="text-sm font-black uppercase tracking-widest text-center">
-            Ticket de Venta
+            {isAbono ? "Ticket de Abono" : "Ticket de Venta"}
           </DialogTitle>
-          <DialogDescription className="sr-only">Vista previa del ticket para imprimir</DialogDescription>
+          <DialogDescription className="sr-only">Vista previa del ticket para {isAbono ? "abono" : "imprimir"}</DialogDescription>
         </DialogHeader>
         
         <div className="px-4 pb-4">
@@ -413,97 +606,128 @@ export function TicketModal({ venta, open, onClose }: TicketModalProps) {
             className="bg-white text-black p-3 rounded-xl text-xs font-mono leading-tight"
             style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
           >
+            {/* Encabezado */}
             <div className="ticket__center font-bold text-sm">Garlo Alimentos</div>
             <div className="ticket__center ticket__muted text-[8px]">Filemon Valenzuela #410, Col. Industrial Ladrillera. CP. 34289</div>
-            <div className="ticket__center ticket__muted text-[9px]">Tel: 871-1865-648</div>
+            <div className="ticket__center ticket__muted text-[9px]">Telefono: 618-1359-407</div>
             
             <div className="ticket__hr" />
             
-            <div className="ticket__row"><span className="font-bold">Ruta "{(venta as any).ruta_nombre || venta.folio || "—"}"</span></div>
+            {/* Información de la venta */}
+            <div className="ticket__row"><span className="font-bold">Ruta "{(venta as any).ruta_nombre || "—"}"</span></div>
             <div className="ticket__row"><span>Le atendió:</span><span>{venta.vendedor_nombre}</span></div>
             <div className="ticket__row"><span>Cliente:</span><span className="font-bold">{venta.cliente_id} – {venta.cliente_nombre}</span></div>
-            <div className="ticket__row"><span>Venta:</span><span>{fmtDateTicket(venta.fecha_iso)}</span></div>
+            <div className="ticket__row"><span>{isAbono ? "Abono:" : "Venta:"}</span><span>{fmtDateTicket(venta.fecha_iso)}</span></div>
             <div className="ticket__row"><span className="font-bold">{getTipoPagoLabel(venta.tipo_pago)}</span></div>
             
-            <div className="ticket__hr" />
-            
-            <div className="ticket__center font-bold text-[10px] mb-1">NOTA DE VENTA</div>
-            <table className="w-full text-[8px] border-collapse">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-0.5">DESC</th>
-                  <th className="py-0.5">UDM</th>
-                  <th className="py-0.5">PZ</th>
-                  <th className="py-0.5">KG</th>
-                  <th className="py-0.5">PRECIO</th>
-                  <th className="text-right py-0.5">SUBTO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {venta.items.map((it, idx) => {
-                  const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
-                  const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
-                  const priceBase = n(it.precio_unitario);
-                  const dto = n(it.descuento_unitario);
-                  const priceFinal = Math.max(priceBase - dto, 0);
-                  const lineTotal = qty * priceFinal;
-                  const piezas = it.tipo_venta === "unidad" ? qty : ((it as any).piezas || 0);
-                  const kilos = it.tipo_venta === "unidad" ? 0 : qty;
-                  
-                  return (
-                    <tr key={idx} className="border-b border-dotted border-gray-300">
-                      <td className="text-left py-0.5">{it.producto}</td>
-                      <td className="text-center py-0.5">{unit}</td>
-                      <td className="text-center py-0.5">{n(piezas).toFixed(0)}</td>
-                      <td className="text-center py-0.5">{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
-                      <td className="text-center py-0.5">{fmtMoney(priceFinal)}</td>
-                      <td className="text-right py-0.5">{fmtMoney(lineTotal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            
-            <div className="border-t-2 border-black my-2" />
-            
-            <div className="ticket__row"><span>SUBTOTAL:</span><span>{fmtMoney(venta.subtotal_base)}</span></div>
-            {n(venta.descuentos) > 0 && (
-              <div className="ticket__row"><span>Descuento:</span><span>-{fmtMoney(venta.descuentos)}</span></div>
-            )}
-            <div className="ticket__row font-bold text-sm"><span>TOTAL:</span><span>{fmtMoney(venta.total)}</span></div>
-            
-            {(venta.tipo_pago === "credito" || venta.tipo_pago === "parcial") && (
+            {isAbono ? (
               <>
+                <div className="ticket__center font-bold text-[10px] my-2">RECIBO DE ABONO</div>
                 <div className="ticket__hr" />
-                <div className="ticket__row"><span>Abono:</span><span>{fmtMoney(venta.abono)}</span></div>
+                <div className="ticket__row font-bold"><span>Monto abonado:</span><span>{fmtMoney(venta.abono)}</span></div>
                 <div className="ticket__row"><span>Saldo anterior:</span><span>{fmtMoney(venta.saldo_anterior)}</span></div>
-                <div className="ticket__row font-bold"><span>Saldo final:</span><span>{fmtMoney(venta.saldo_final)}</span></div>
+                <div className="ticket__row font-bold"><span>Saldo actual:</span><span>{fmtMoney(venta.saldo_final)}</span></div>
+              </>
+            ) : (
+              <>
+                {/* NOTA DE VENTA - Tabla de productos */}
+                <div className="ticket__center font-bold text-[10px] my-2">NOTA DE VENTA</div>
+                <table className="w-full text-[8px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-black">
+                      <th className="text-left py-0.5">DESCRIPCION</th>
+                      <th className="py-0.5">UDM</th>
+                      <th className="py-0.5">PZ</th>
+                      <th className="py-0.5">CANT KG</th>
+                      <th className="py-0.5">PRECIO</th>
+                      <th className="text-right py-0.5">SUBTO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {venta.items.map((it, idx) => {
+                      const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
+                      const unit = it.tipo_venta === "unidad" ? "PZ" : "KG";
+                      const priceBase = n(it.precio_unitario);
+                      const lineSubtotal = qty * priceBase;
+                      const piezas = it.tipo_venta === "unidad" ? qty : ((it as any).piezas || 0);
+                      const kilos = it.tipo_venta === "unidad" ? 0 : qty;
+                      
+                      return (
+                        <tr key={idx} className="border-b border-dotted border-gray-300">
+                          <td className="text-left py-0.5">{it.producto}</td>
+                          <td className="text-center py-0.5">{unit}</td>
+                          <td className="text-center py-0.5">{n(piezas).toFixed(0)}</td>
+                          <td className="text-center py-0.5">{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
+                          <td className="text-center py-0.5">{fmtMoney(priceBase)}</td>
+                          <td className="text-right py-0.5">{fmtMoney(lineSubtotal)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                
+                {/* Línea separadora y sección TOTAL */}
+                <div className="border-t-2 border-black my-2" />
+                
+                <div className="ticket__center font-bold text-[10px] mb-1">TOTAL:</div>
+                <div className="ticket__row"><span>SUBTOTAL:</span><span>{fmtMoney(venta.subtotal_base)}</span></div>
+                {n(venta.descuentos) > 0 && (
+                  <div className="ticket__row"><span>Descuento:</span><span>-{fmtMoney(venta.descuentos)}</span></div>
+                )}
+                <div className="ticket__row font-bold"><span>Total:</span><span>{fmtMoney(venta.total)}</span></div>
+                <div className="ticket__row"><span>Saldo anterior:</span><span>{fmtMoney(venta.saldo_anterior)}</span></div>
+                <div className="ticket__row font-bold"><span>Saldo actual:</span><span>{fmtMoney(venta.saldo_final)}</span></div>
+                {n(venta.pago_cliente) > 0 && (
+                  <>
+                    <div className="border-t border-dotted border-gray-400 my-1" />
+                    <div className="ticket__row"><span>Pago:</span><span>{fmtMoney(venta.pago_cliente)}</span></div>
+                    {n(venta.cambio) > 0 && (
+                      <div className="ticket__row font-bold"><span>Cambio:</span><span>{fmtMoney(venta.cambio)}</span></div>
+                    )}
+                  </>
+                )}
               </>
             )}
             
+            {/* Firma */}
             <div className="ticket__hr" />
-            
             <div className="ticket__center ticket__muted mt-4">Firma: ___________________</div>
-            <div className="ticket__center ticket__muted text-[10px] mt-3">Gracias por su compra</div>
           </div>
           
-          <div className="flex gap-2 mt-4">
+          <div className="grid grid-cols-3 gap-2 mt-4">
             <Button 
-              variant="secondary" 
-              className="flex-1 h-12 rounded-2xl font-black uppercase text-xs gap-2"
-              onClick={onClose}
-              data-testid="button-close-ticket"
+              variant="outline" 
+              className="h-11 rounded-2xl font-black uppercase text-[10px] gap-1 px-2"
+              onClick={handleShare}
+              disabled={sharing}
+              data-testid="button-share-ticket"
             >
-              <XIcon className="h-4 w-4" /> Cerrar
+              <ShareIcon className="h-4 w-4" /> {sharing ? "..." : "Imagen"}
             </Button>
             <Button 
-              className="flex-1 h-12 rounded-2xl font-black uppercase text-xs gap-2"
+              variant="outline"
+              className="h-11 rounded-2xl font-black uppercase text-[10px] gap-1 px-2 bg-green-50 border-green-500 text-green-700 hover:bg-green-100"
+              onClick={handleWhatsAppShare}
+              data-testid="button-whatsapp-ticket"
+            >
+              <MessageCircleIcon className="h-4 w-4" /> WhatsApp
+            </Button>
+            <Button 
+              className="h-11 rounded-2xl font-black uppercase text-[10px] gap-1 px-2"
               onClick={handlePrint}
               data-testid="button-print-ticket"
             >
               <PrinterIcon className="h-4 w-4" /> Imprimir
             </Button>
           </div>
+          <Button 
+            variant="secondary" 
+            className="w-full h-12 rounded-2xl font-black uppercase text-xs gap-2 mt-2"
+            onClick={onVolver || onClose}
+            data-testid="button-volver-ticket"
+          >
+            <HomeIcon className="h-4 w-4" /> Volver
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

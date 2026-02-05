@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexión - Ventas por Ruta</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #f1f5f9;
+    }
+    .container {
+      text-align: center;
+      max-width: 400px;
+    }
+    .icon {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 30px;
+      box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+    }
+    .icon svg {
+      width: 60px;
+      height: 60px;
+      fill: white;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #f8fafc;
+    }
+    p {
+      font-size: 16px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 30px;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 100px;
+      color: #fca5a5;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    .status .dot {
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    .info {
+      margin-top: 40px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .info h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .info ul {
+      list-style: none;
+      text-align: left;
+    }
+    .info li {
+      padding: 8px 0;
+      font-size: 14px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .info li::before {
+      content: "✓";
+      color: #22c55e;
+      font-weight: bold;
+    }
+    .pending-badge {
+      display: none;
+      margin-top: 20px;
+      padding: 12px 20px;
+      background: rgba(234, 179, 8, 0.15);
+      border: 1px solid rgba(234, 179, 8, 0.3);
+      border-radius: 12px;
+      color: #fcd34d;
+      font-size: 14px;
+    }
+    .pending-badge.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      </svg>
+    </div>
+    
+    <h1>Sin conexión</h1>
+    <p>No tienes conexión a internet en este momento. Tus ventas pendientes se sincronizarán cuando vuelvas a conectarte.</p>
+    
+    <div class="status">
+      <span class="dot"></span>
+      Modo offline activo
+    </div>
+    
+    <div id="pending-badge" class="pending-badge">
+      <strong id="pending-count">0</strong> ventas pendientes por sincronizar
+    </div>
+    
+    <button class="btn" onclick="tryReconnect()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+      </svg>
+      Reintentar conexión
+    </button>
+    
+    <div class="info">
+      <h3>Mientras tanto puedes:</h3>
+      <ul>
+        <li>Tus datos están guardados localmente</li>
+        <li>Las ventas offline se guardarán</li>
+        <li>Se sincronizarán al reconectar</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function tryReconnect() {
+      if (navigator.onLine) {
+        window.location.href = '/';
+      } else {
+        alert('Aún no hay conexión. Por favor verifica tu red.');
+      }
+    }
+    
+    function checkPendingVentas() {
+      try {
+        const pending = localStorage.getItem('vr_pending_ventas');
+        if (pending) {
+          const ventas = JSON.parse(pending);
+          if (ventas.length > 0) {
+            document.getElementById('pending-badge').classList.add('show');
+            document.getElementById('pending-count').textContent = ventas.length;
+          }
+        }
+      } catch (e) {}
+    }
+    
+    window.addEventListener('online', () => {
+      window.location.href = '/';
+    });
+    
+    checkPendingVentas();
+  </script>
+</body>
+</html>

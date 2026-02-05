@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/SearchInput";
 import { useToast } from "@/hooks/use-toast";
-import { UsersIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import { UsersIcon, PlusIcon, RefreshCwIcon, PencilIcon } from "lucide-react";
 
 interface Cliente {
   id: number;
@@ -35,6 +35,14 @@ export default function ClientesAdminPage() {
   const [filtroRuta, setFiltroRuta] = React.useState<string>("todas");
   
   const [form, setForm] = React.useState({
+    nombre: "",
+    direccion: "",
+    telefono: "",
+    rutaId: "",
+  });
+  const [editingCliente, setEditingCliente] = React.useState<Cliente | null>(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editForm, setEditForm] = React.useState({
     nombre: "",
     direccion: "",
     telefono: "",
@@ -148,9 +156,58 @@ export default function ClientesAdminPage() {
     }
   };
 
-  const filtered = clientes.filter((c) =>
-    `${c.id} ${c.nombre} ${c.direccion || ""} ${c.telefono || ""}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const openEdit = (cliente: Cliente) => {
+    setEditingCliente(cliente);
+    setEditForm({
+      nombre: cliente.nombre,
+      direccion: cliente.direccion || "",
+      telefono: cliente.telefono || "",
+      rutaId: String(cliente.rutaId),
+    });
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCliente || !editForm.nombre.trim() || !editForm.rutaId) {
+      toast({ title: "Validación", description: "Nombre y ruta son requeridos.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`/api/clientes/${editingCliente.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nombre: editForm.nombre.trim(),
+          rutaId: parseInt(editForm.rutaId),
+          direccion: editForm.direccion.trim() || null,
+          telefono: editForm.telefono.trim() || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Error actualizando cliente");
+      }
+
+      toast({ title: "Éxito", description: `Cliente #${editingCliente.id} actualizado.` });
+      setEditOpen(false);
+      setEditingCliente(null);
+      loadClientesByRuta(filtroRuta);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const filtered = clientes
+    .filter((c) =>
+      `${c.id} ${c.nombre} ${c.direccion || ""} ${c.telefono || ""}`.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => a.id - b.id);
 
   const getRutaNombre = (rutaId: number) => rutas.find((r) => r.id === rutaId)?.nombre || `Ruta ${rutaId}`;
 
@@ -201,7 +258,7 @@ export default function ClientesAdminPage() {
                   <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-none font-bold text-sm" data-testid="select-filtro-ruta">
                     <SelectValue placeholder="Todas las rutas" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectContent className="rounded-xl max-h-60 overflow-y-auto">
                     <SelectItem value="todas" className="font-bold">Todas las rutas</SelectItem>
                     {rutas.map((r) => (
                       <SelectItem key={r.id} value={String(r.id)} className="font-bold">
@@ -266,6 +323,15 @@ export default function ClientesAdminPage() {
                       </div>
                     )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+                    onClick={() => openEdit(c)}
+                    data-testid={`button-edit-cliente-${c.id}`}
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </Button>
                 </div>
               </Card>
             ))
@@ -298,7 +364,7 @@ export default function ClientesAdminPage() {
                 <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none font-bold" data-testid="select-cliente-ruta">
                   <SelectValue placeholder="Seleccionar ruta..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl">
+                <SelectContent className="rounded-xl max-h-60 overflow-y-auto">
                   {rutas.map((r) => (
                     <SelectItem key={r.id} value={String(r.id)} className="font-bold">
                       {r.nombre}
@@ -336,6 +402,74 @@ export default function ClientesAdminPage() {
             </Button>
             <Button onClick={handleSave} className="rounded-xl font-bold" data-testid="button-guardar-cliente">
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-[95%] sm:max-w-[420px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-black uppercase tracking-widest text-center">
+              Editar Cliente #{editingCliente?.id}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-nombre" className="text-xs font-bold uppercase">Nombre *</Label>
+              <Input
+                id="edit-nombre"
+                value={editForm.nombre}
+                onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
+                placeholder="Nombre del cliente"
+                className="h-12 rounded-xl bg-muted/30 border-none"
+                data-testid="input-edit-cliente-nombre"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-ruta" className="text-xs font-bold uppercase">Ruta *</Label>
+              <Select value={editForm.rutaId} onValueChange={(v) => setEditForm({ ...editForm, rutaId: v })}>
+                <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none font-bold" data-testid="select-edit-cliente-ruta">
+                  <SelectValue placeholder="Seleccionar ruta..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl max-h-60 overflow-y-auto">
+                  {rutas.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)} className="font-bold">
+                      {r.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-direccion" className="text-xs font-bold uppercase">Dirección</Label>
+              <Input
+                id="edit-direccion"
+                value={editForm.direccion}
+                onChange={(e) => setEditForm({ ...editForm, direccion: e.target.value })}
+                placeholder="Dirección (opcional)"
+                className="h-12 rounded-xl bg-muted/30 border-none"
+                data-testid="input-edit-cliente-direccion"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-telefono" className="text-xs font-bold uppercase">Teléfono</Label>
+              <Input
+                id="edit-telefono"
+                value={editForm.telefono}
+                onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })}
+                placeholder="Teléfono (opcional)"
+                className="h-12 rounded-xl bg-muted/30 border-none"
+                data-testid="input-edit-cliente-telefono"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setEditOpen(false)} className="rounded-xl font-bold" data-testid="button-cancelar-edit-cliente">
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} className="rounded-xl font-bold" data-testid="button-guardar-edit-cliente">
+              Guardar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>

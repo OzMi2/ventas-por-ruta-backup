@@ -47,6 +47,7 @@ export interface IStorage {
   getClientesByRuta(rutaId: number): Promise<Cliente[]>;
   getCliente(id: number): Promise<Cliente | undefined>;
   createCliente(cliente: InsertCliente): Promise<Cliente>;
+  updateCliente(id: number, updates: Partial<InsertCliente>): Promise<Cliente | undefined>;
   
   // Productos
   getProductos(): Promise<Producto[]>;
@@ -90,7 +91,7 @@ export interface IStorage {
   decrementarBodega(productoId: number, cantidad: string): Promise<boolean>;
   
   // Movimientos de stock
-  getMovimientosStock(limit?: number): Promise<Array<MovimientoStock & { productoNombre: string; rutaNombre?: string; usuarioNombre: string }>>;
+  getMovimientosStock(limit?: number): Promise<Array<MovimientoStock & { productoNombre: string; productoUnidad: string; rutaNombre?: string; usuarioNombre: string }>>;
   createMovimientoStock(movimiento: InsertMovimientoStock): Promise<MovimientoStock>;
   
   // Transferencia bodega -> ruta
@@ -123,10 +124,20 @@ export interface IStorage {
   
   // Abonos
   getAbonosByCliente(clienteId: number, limit?: number): Promise<Array<Abono & { usuarioNombre: string }>>;
+  getAbonosByUsuario(usuarioId: number, limit?: number): Promise<Array<Abono & { usuarioNombre: string; clienteNombre: string; rutaId: number; rutaNombre: string }>>;
   registrarAbono(clienteId: number, monto: string, usuarioId: number, notas?: string): Promise<Abono>;
   
   // Ventas a crédito
   registrarVentaCredito(venta: InsertVenta, items: InsertVentaItem[], montoCredito: string): Promise<Venta>;
+  
+  // Historial de precios
+  getHistorialPreciosByProducto(productoId: number): Promise<any[]>;
+  registrarCambioPrecio(productoId: number, precioAnterior: string, precioNuevo: string, usuarioId?: number, notas?: string): Promise<void>;
+  
+  // Push Subscriptions
+  savePushSubscription(usuarioId: number, endpoint: string, p256dh: string, auth: string): Promise<void>;
+  deletePushSubscription(endpoint: string): Promise<void>;
+  getPushSubscriptionsByUsuario(usuarioId: number): Promise<Array<{ endpoint: string; p256dh: string; auth: string }>>;
 }
 
 export class DBStorage implements IStorage {
@@ -229,6 +240,15 @@ export class DBStorage implements IStorage {
 
   async createCliente(cliente: InsertCliente): Promise<Cliente> {
     const result = await this.db.insert(clientes).values(cliente).returning();
+    return result[0];
+  }
+
+  async updateCliente(id: number, updates: Partial<InsertCliente>): Promise<Cliente | undefined> {
+    const result = await this.db
+      .update(clientes)
+      .set(updates)
+      .where(eq(clientes.id, id))
+      .returning();
     return result[0];
   }
 
@@ -337,9 +357,10 @@ export class DBStorage implements IStorage {
     return await this.populateVentaItems(ventasResult);
   }
 
-  private async populateVentaItems(ventasResult: Venta[]): Promise<Array<Venta & { items: Array<VentaItem & { productoNombre?: string }>; vendedorNombre?: string }>> {
-    // Get all unique producto IDs and usuario IDs
+  private async populateVentaItems(ventasResult: Venta[]): Promise<Array<Venta & { items: Array<VentaItem & { productoNombre?: string }>; vendedorNombre?: string; rutaNombre?: string }>> {
+    // Get all unique producto IDs, usuario IDs, and ruta IDs
     const usuarioIds = Array.from(new Set(ventasResult.map(v => v.usuarioId).filter(Boolean)));
+    const rutaIds = Array.from(new Set(ventasResult.map(v => v.rutaId).filter(Boolean)));
     const ventaIds = ventasResult.map(v => v.id);
     
     // Batch fetch usuarios
@@ -350,6 +371,17 @@ export class DBStorage implements IStorage {
         .where(inArray(usuarios.id, usuarioIds as number[]));
       for (const u of usuariosResult) {
         usuariosMap[u.id] = u.nombre;
+      }
+    }
+    
+    // Batch fetch rutas
+    const rutasMap: Record<number, string> = {};
+    if (rutaIds.length > 0) {
+      const rutasResult = await this.db.select({ id: rutas.id, nombre: rutas.nombre })
+        .from(rutas)
+        .where(inArray(rutas.id, rutaIds as number[]));
+      for (const r of rutasResult) {
+        rutasMap[r.id] = r.nombre;
       }
     }
     
@@ -389,6 +421,7 @@ export class DBStorage implements IStorage {
     return ventasResult.map(venta => ({
       ...venta,
       vendedorNombre: usuariosMap[venta.usuarioId] || "",
+      rutaNombre: venta.rutaId ? rutasMap[venta.rutaId] || "" : "",
       items: itemsByVentaId[venta.id] || [],
     }));
   }
@@ -617,7 +650,7 @@ export class DBStorage implements IStorage {
   }
 
   // Movimientos de stock
-  async getMovimientosStock(limit: number = 100): Promise<Array<MovimientoStock & { productoNombre: string; rutaNombre?: string; usuarioNombre: string }>> {
+  async getMovimientosStock(limit: number = 100): Promise<Array<MovimientoStock & { productoNombre: string; productoUnidad: string; rutaNombre?: string; usuarioNombre: string }>> {
     const movimientos = await this.db.select().from(movimientosStock).orderBy(desc(movimientosStock.fecha)).limit(limit);
     
     const movimientosConDetalles = await Promise.all(
@@ -632,6 +665,7 @@ export class DBStorage implements IStorage {
         return {
           ...mov,
           productoNombre: producto[0]?.nombre || `Producto #${mov.productoId}`,
+          productoUnidad: producto[0]?.unidad || "PIEZA",
           rutaNombre,
           usuarioNombre: usuario[0]?.nombre || `Usuario #${mov.usuarioId}`,
         };
@@ -1054,6 +1088,31 @@ export class DBStorage implements IStorage {
     return abonosConNombre;
   }
 
+  async getAbonosByUsuario(usuarioId: number, limit: number = 100): Promise<Array<Abono & { usuarioNombre: string; clienteNombre: string; rutaId: number; rutaNombre: string }>> {
+    const abonosResult = await this.db.select().from(abonos)
+      .where(eq(abonos.usuarioId, usuarioId))
+      .orderBy(desc(abonos.fecha))
+      .limit(limit);
+    
+    const abonosConInfo = await Promise.all(
+      abonosResult.map(async (a) => {
+        const [usuario] = await this.db.select().from(usuarios).where(eq(usuarios.id, a.usuarioId)).limit(1);
+        const [cliente] = await this.db.select().from(clientes).where(eq(clientes.id, a.clienteId)).limit(1);
+        const [ruta] = cliente?.rutaId 
+          ? await this.db.select().from(rutas).where(eq(rutas.id, cliente.rutaId)).limit(1)
+          : [null];
+        return {
+          ...a,
+          usuarioNombre: usuario?.nombre || `Usuario #${a.usuarioId}`,
+          clienteNombre: cliente?.nombre || `Cliente #${a.clienteId}`,
+          rutaId: cliente?.rutaId || 0,
+          rutaNombre: ruta?.nombre || "",
+        };
+      })
+    );
+    return abonosConInfo;
+  }
+
   async registrarAbono(clienteId: number, monto: string, usuarioId: number, notas?: string): Promise<Abono> {
     return await this.db.transaction(async (tx) => {
       // Obtener saldo actual
@@ -1194,29 +1253,87 @@ export class DBStorage implements IStorage {
   // Ventas a crédito
   async registrarVentaCredito(venta: InsertVenta, items: InsertVentaItem[], montoCredito: string): Promise<Venta> {
     return await this.db.transaction(async (tx) => {
-      // Crear la venta
-      const [ventaCreated] = await tx.insert(ventas).values(venta).returning();
+      // Obtener saldo actual del cliente ANTES de la venta
+      const saldoActual = await tx.select().from(saldosClientes)
+        .where(eq(saldosClientes.clienteId, venta.clienteId)).limit(1);
+      
+      const saldoAnteriorVal = saldoActual[0]?.saldo || "0";
+      const nuevoSaldoVal = (parseFloat(saldoAnteriorVal) + parseFloat(montoCredito)).toFixed(2);
+      
+      // Crear la venta con los saldos registrados
+      const ventaConSaldos = {
+        ...venta,
+        saldoAnterior: saldoAnteriorVal,
+        saldoFinal: nuevoSaldoVal,
+      };
+      const [ventaCreated] = await tx.insert(ventas).values(ventaConSaldos).returning();
       
       const itemsWithVentaId = items.map(item => ({ ...item, ventaId: ventaCreated.id }));
       await tx.insert(ventaItems).values(itemsWithVentaId);
       
       // Actualizar saldo del cliente (agregar crédito)
-      const saldoActual = await tx.select().from(saldosClientes)
-        .where(eq(saldosClientes.clienteId, venta.clienteId)).limit(1);
-      
-      const saldoAnterior = saldoActual[0]?.saldo || "0";
-      const nuevoSaldo = (parseFloat(saldoAnterior) + parseFloat(montoCredito)).toFixed(2);
-      
       if (saldoActual[0]) {
         await tx.update(saldosClientes)
-          .set({ saldo: nuevoSaldo, ultimaActualizacion: new Date() })
+          .set({ saldo: nuevoSaldoVal, ultimaActualizacion: new Date() })
           .where(eq(saldosClientes.clienteId, venta.clienteId));
       } else {
-        await tx.insert(saldosClientes).values({ clienteId: venta.clienteId, saldo: nuevoSaldo });
+        await tx.insert(saldosClientes).values({ clienteId: venta.clienteId, saldo: nuevoSaldoVal });
       }
       
       return ventaCreated;
     });
+  }
+
+  async getHistorialPreciosByProducto(productoId: number): Promise<any[]> {
+    const result = await this.db.execute(sql`
+      SELECT hp.*, u.username as usuario_nombre, p.nombre as producto_nombre
+      FROM historial_precios hp
+      LEFT JOIN usuarios u ON hp.usuario_id = u.id
+      LEFT JOIN productos p ON hp.producto_id = p.id
+      WHERE hp.producto_id = ${productoId}
+      ORDER BY hp.fecha DESC
+      LIMIT 50
+    `);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      productoId: row.producto_id,
+      precioAnterior: row.precio_anterior,
+      precioNuevo: row.precio_nuevo,
+      usuarioNombre: row.usuario_nombre,
+      productoNombre: row.producto_nombre,
+      notas: row.notas,
+      fecha: row.fecha,
+    }));
+  }
+
+  async registrarCambioPrecio(productoId: number, precioAnterior: string, precioNuevo: string, usuarioId?: number, notas?: string): Promise<void> {
+    await this.db.execute(sql`
+      INSERT INTO historial_precios (producto_id, precio_anterior, precio_nuevo, usuario_id, notas)
+      VALUES (${productoId}, ${precioAnterior}, ${precioNuevo}, ${usuarioId || null}, ${notas || null})
+    `);
+  }
+
+  async savePushSubscription(usuarioId: number, endpoint: string, p256dh: string, auth: string): Promise<void> {
+    await this.db.execute(sql`
+      INSERT INTO push_subscriptions (usuario_id, endpoint, p256dh, auth)
+      VALUES (${usuarioId}, ${endpoint}, ${p256dh}, ${auth})
+      ON CONFLICT (endpoint) DO UPDATE SET p256dh = ${p256dh}, auth = ${auth}
+    `);
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    await this.db.execute(sql`DELETE FROM push_subscriptions WHERE endpoint = ${endpoint}`);
+  }
+
+  async getPushSubscriptionsByUsuario(usuarioId: number): Promise<Array<{ endpoint: string; p256dh: string; auth: string }>> {
+    const result = await this.db.execute(sql`
+      SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE usuario_id = ${usuarioId}
+    `);
+    return result.rows.map((row: any) => ({
+      endpoint: row.endpoint,
+      p256dh: row.p256dh,
+      auth: row.auth,
+    }));
   }
 }
 

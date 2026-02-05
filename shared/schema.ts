@@ -125,6 +125,10 @@ export const ventas = pgTable("ventas", {
   descuentoAplicado: text("descuento_aplicado"), // JSON con info de descuento
   abono: decimal("abono", { precision: 10, scale: 2 }).notNull().default("0"), // monto pagado en esta venta
   tipoPago: varchar("tipo_pago", { length: 20 }).notNull().default("contado"), // contado, credito, parcial
+  saldoAnterior: decimal("saldo_anterior", { precision: 12, scale: 2 }).default("0"), // saldo antes de esta venta
+  saldoFinal: decimal("saldo_final", { precision: 12, scale: 2 }).default("0"), // saldo después de esta venta
+  pagoCliente: decimal("pago_cliente", { precision: 12, scale: 2 }).default("0"), // monto que pagó el cliente
+  cambio: decimal("cambio", { precision: 12, scale: 2 }).default("0"), // cambio devuelto al cliente
 }, (table) => ({
   clienteTxIdIdx: index("ventas_cliente_tx_id_idx").on(table.clienteTxId),
   rutaIdx: index("ventas_ruta_idx").on(table.rutaId),
@@ -142,16 +146,16 @@ export const ventaItems = pgTable("venta_items", {
   ventaId: integer("venta_id").references(() => ventas.id).notNull(),
   productoId: integer("producto_id").references(() => productos.id).notNull(),
   cantidad: decimal("cantidad", { precision: 10, scale: 3 }).notNull(),
+  piezas: decimal("piezas", { precision: 10, scale: 3 }),
+  kilos: decimal("kilos", { precision: 10, scale: 3 }),
   precioUnitario: decimal("precio_unitario", { precision: 10, scale: 2 }).notNull(),
+  descuentoUnitario: decimal("descuento_unitario", { precision: 10, scale: 2 }).default("0"),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
 }, (table) => ({
   ventaIdx: index("venta_items_venta_idx").on(table.ventaId),
 }));
 
-export const insertVentaItemSchema = createInsertSchema(ventaItems).omit({ id: true, ventaId: true }).extend({
-  piezas: z.string().optional(),
-  kilos: z.string().optional(),
-});
+export const insertVentaItemSchema = createInsertSchema(ventaItems).omit({ id: true, ventaId: true });
 export type InsertVentaItem = z.infer<typeof insertVentaItemSchema>;
 export type InsertVentaItemWithVentaId = z.infer<typeof insertVentaItemSchema> & { ventaId: number };
 export type VentaItem = typeof ventaItems.$inferSelect;
@@ -271,3 +275,38 @@ export const inventarioRutaMixto = pgTable("inventario_ruta_mixto", {
 export const insertInventarioRutaMixtoSchema = createInsertSchema(inventarioRutaMixto).omit({ id: true, ultimaActualizacion: true });
 export type InsertInventarioRutaMixto = z.infer<typeof insertInventarioRutaMixtoSchema>;
 export type InventarioRutaMixto = typeof inventarioRutaMixto.$inferSelect;
+
+// Historial de precios de productos
+export const historialPrecios = pgTable("historial_precios", {
+  id: serial("id").primaryKey(),
+  productoId: integer("producto_id").references(() => productos.id).notNull(),
+  precioAnterior: decimal("precio_anterior", { precision: 10, scale: 2 }).notNull(),
+  precioNuevo: decimal("precio_nuevo", { precision: 10, scale: 2 }).notNull(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id),
+  notas: text("notas"),
+  fecha: timestamp("fecha").defaultNow().notNull(),
+}, (table) => ({
+  productoIdx: index("historial_precios_producto_idx").on(table.productoId),
+  fechaIdx: index("historial_precios_fecha_idx").on(table.fecha),
+}));
+
+export const insertHistorialPrecioSchema = createInsertSchema(historialPrecios).omit({ id: true, fecha: true });
+export type InsertHistorialPrecio = z.infer<typeof insertHistorialPrecioSchema>;
+export type HistorialPrecio = typeof historialPrecios.$inferSelect;
+
+// Suscripciones Push
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  usuarioId: integer("usuario_id").references(() => usuarios.id).notNull(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  usuarioIdx: index("push_subs_usuario_idx").on(table.usuarioId),
+  endpointIdx: index("push_subs_endpoint_idx").on(table.endpoint),
+}));
+
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;

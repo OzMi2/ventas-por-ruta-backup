@@ -69,6 +69,7 @@ export interface VentaItem {
   productoId: number;
   cantidad: string;
   precioUnitario: string;
+  descuentoUnitario?: string;
   subtotal: string;
   piezas?: string;
   kilos?: string;
@@ -92,6 +93,8 @@ export interface SyncEvent {
   venta: Venta;
   items: VentaItem[];
   abono?: number;
+  pagoCliente?: number;
+  cambio?: number;
 }
 
 export interface SyncPushRequest {
@@ -249,6 +252,15 @@ class ApiClient {
 
   async getMovimientos(): Promise<{ movimientos: any[] }> {
     return this.request<{ movimientos: any[] }>("/movimientos");
+  }
+  
+  async getMovimientosRuta(rutaId: number, fechaDesde?: string, fechaHasta?: string): Promise<{ movimientos: any[] }> {
+    let url = `/movimientos/ruta/${rutaId}`;
+    const params = new URLSearchParams();
+    if (fechaDesde) params.append('fechaDesde', fechaDesde);
+    if (fechaHasta) params.append('fechaHasta', fechaHasta);
+    if (params.toString()) url += `?${params.toString()}`;
+    return this.request<{ movimientos: any[] }>(url);
   }
 }
 

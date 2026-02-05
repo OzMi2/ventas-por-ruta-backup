@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppStore } from "@/store/store";
 import { DollarSignIcon, UserIcon, CreditCardIcon, CheckCircleIcon, HistoryIcon, DownloadIcon } from "lucide-react";
 import { exportAbonosToExcel } from "@/utils/exportExcel";
+import { TicketModal } from "@/components/TicketPrint";
+import type { HistorialVenta } from "@/services/historial";
 
 interface Cliente {
   id: number;
@@ -46,6 +48,8 @@ export default function AbonosPage() {
   const [saldoActual, setSaldoActual] = React.useState<string | null>(null);
   const [historial, setHistorial] = React.useState<Abono[]>([]);
   const [showHistorial, setShowHistorial] = React.useState(false);
+  const [lastTicket, setLastTicket] = React.useState<HistorialVenta | null>(null);
+  const [showTicket, setShowTicket] = React.useState(false);
 
   const selectedCliente = clientes.find(c => c.id.toString() === clienteId);
 
@@ -58,7 +62,12 @@ export default function AbonosPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setClientes(data.clientes || []);
+        // Filtrar solo clientes con saldo pendiente > 0
+        const clientesConSaldo = (data.clientes || []).filter((c: Cliente) => {
+          const saldo = parseFloat(c.saldo || "0");
+          return saldo > 0;
+        });
+        setClientes(clientesConSaldo);
       }
     } catch (e) {
       console.error("Error cargando clientes:", e);
@@ -152,6 +161,38 @@ export default function AbonosPage() {
       }
 
       const data = await response.json();
+      
+      // Generar ticket de abono
+      const rutaIdAbono = state.session?.rutaId || "";
+      const ticket: HistorialVenta = {
+        id: `ticket_abono_${Date.now()}`,
+        folio: String(data.abono?.id || "—"),
+        fecha_iso: new Date().toISOString(),
+        ruta: String(rutaIdAbono),
+        ruta_nombre: String(rutaIdAbono),
+        cliente_id: String(clienteId),
+        cliente_nombre: String(selectedCliente?.nombre || ""),
+        vendedor_id: String(state.session?.usuario_id || ""),
+        vendedor_nombre: String(state.session?.nombre || ""),
+        tipo_pago: "abono",
+        subtotal_base: 0,
+        descuentos: 0,
+        total: 0,
+        abono: parseFloat(monto),
+        saldo_anterior: parseFloat(data.abono.saldoAnterior || saldoActual || "0"),
+        saldo_final: parseFloat(data.abono.saldoNuevo),
+        items: [{
+          producto: "ABONO",
+          tipo_venta: "unidad",
+          cantidad: 1,
+          kilos: 0,
+          precio_unitario: parseFloat(monto),
+          descuento_unitario: 0,
+          subtotal: parseFloat(monto),
+        }],
+      };
+      setLastTicket(ticket);
+      setShowTicket(true);
       
       toast({ 
         title: "Abono Registrado", 
@@ -387,6 +428,17 @@ export default function AbonosPage() {
           </Card>
         )}
       </div>
+      
+      <TicketModal 
+        venta={lastTicket} 
+        open={showTicket} 
+        onClose={() => setShowTicket(false)}
+        isAbono={true}
+        onVolver={() => {
+          setShowTicket(false);
+          window.location.href = "/";
+        }}
+      />
     </AppShell>
   );
 }

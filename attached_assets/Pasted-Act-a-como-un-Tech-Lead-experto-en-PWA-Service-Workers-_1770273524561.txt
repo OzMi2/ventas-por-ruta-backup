@@ -1,0 +1,82 @@
+Actúa como un Tech Lead experto en PWA, Service Workers, offline-first, Web Performance y publicación en Play Store usando TWA.
+
+Contexto:
+- Tengo un proyecto en Replit con un repositorio dentro del mismo proyecto.
+- La app está casi funcional.
+- Quiero mejorar el modo offline (de verdad usable) y que se pueda instalar como PWA correctamente.
+- Meta final: dejarla lista para publicar en Play Store (usando Trusted Web Activity), cumpliendo requisitos técnicos y de calidad.
+
+Tareas (OBLIGATORIAS):
+1) Escaneo del repo
+   - Recorre TODOS los archivos del proyecto.
+   - Identifica: framework (React/Vue/Angular/Vanilla/Next/etc), bundler, rutas, assets, API calls, autenticación, almacenamiento local, y si ya existe manifest/service worker.
+   - Lista archivos relevantes por categoría: PWA (manifest, sw, icons), offline/caching, networking, build/deploy, config, auth, storage, UI/UX, performance, seguridad.
+
+2) Diagnóstico PWA
+   - Verifica requisitos: manifest completo, icons correctos (tamaños, maskable), start_url, scope, display, theme_color/background_color, orientation (si aplica).
+   - Confirma instalabilidad: Lighthouse/Chrome heuristics (https + manifest válido + service worker con fetch handler + icons).
+   - Identifica fallos típicos: start_url incorrecto, scope mal, SW no registrado en producción, caching roto, assets no versionados, etc.
+
+3) Offline-first “real”
+   - Define estrategia offline por tipo de recurso:
+     a) App shell (HTML/CSS/JS): precache con versionado.
+     b) Assets (icons, imágenes): cache-first con expiración.
+     c) API GET: stale-while-revalidate con fallback.
+     d) API POST/PUT/DELETE: cola offline (Background Sync si se puede) + retry + resolución de conflictos.
+   - Propón e implementa (si el stack lo permite) una cola offline:
+     - almacenar requests en IndexedDB
+     - reintento al reconectar
+     - UI de “pendientes por sincronizar”
+   - Debe haber una página/estado offline amigable.
+
+4) Implementación concreta (NO SOLO IDEAS)
+   - Entrega un plan en 3 fases: “Hoy”, “Esta semana”, “Antes de publicar”.
+   - Luego aplica cambios reales en archivos (o genera diffs) para:
+     - Agregar/ajustar manifest.json
+     - Generar icons (instrucciones + nombres esperados)
+     - Registrar SW correctamente
+     - Implementar service worker robusto (ideal: Workbox si se puede; si no, SW manual bien hecho)
+     - Caching strategies por rutas
+     - Fallback offline
+     - Manejo de updates (skipWaiting/clientsClaim con UX: “Hay una nueva versión, actualizar”)
+     - Mejorar performance (code splitting, lazy loading, evitar recursos enormes, etc.)
+   - Cada cambio debe incluir:
+     - archivo afectado
+     - explicación breve
+     - código completo o diff exacto
+
+5) Seguridad y estabilidad
+   - Revisa variables de entorno, endpoints, tokens, almacenamiento.
+   - Evita guardar JWT en localStorage si hay alternativa; si no, mitiga riesgos.
+   - Revisa CORS, CSP si aplica, headers recomendados.
+   - Evita exponer secretos en frontend.
+
+6) Checklist de lanzamiento Play Store (TWA)
+   - Explica cómo empacar como TWA:
+     - Digital Asset Links
+     - assetlinks.json en el dominio
+     - generar el Android wrapper (Bubblewrap o Android Studio)
+     - requisitos de dominio (https, ownership)
+     - splash, icons, versioning
+   - Crea un checklist final “Release Ready”:
+     - PWA installable
+     - offline funcional
+     - Lighthouse PWA score objetivo
+     - performance básico
+     - manejo de actualizaciones
+     - errores controlados
+     - analytics/crash reporting (opcional)
+
+Salida esperada (FORMATO OBLIGATORIO):
+A) Resumen ejecutivo (máximo 10 bullets)
+B) Hallazgos por prioridad: P0, P1, P2
+C) Matriz “archivo → problema → cambio propuesto”
+D) Implementación: lista de cambios con diffs/código
+E) Checklist Play Store TWA paso a paso
+F) Comandos de prueba y verificación (Lighthouse, Chrome devtools, offline simulation)
+
+Importante:
+- No inventes archivos: si un archivo no existe, di “no existe” y crea uno con ubicación explícita.
+- Si hay múltiples opciones (Workbox vs SW manual), elige la mejor para este repo y justifica brevemente.
+- No dejes nada “a medias”: si propones offline queue, incluye el esquema de IndexedDB y el flujo completo.
+Empieza ahora leyendo la estructura del proyecto y reportando el stack detectado.

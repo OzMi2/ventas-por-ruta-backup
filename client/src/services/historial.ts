@@ -1,9 +1,11 @@
 import { apiClient } from "@/lib/api";
 
 export type HistorialVentaItem = {
+  productoId?: number;
   producto: string;
   tipo_venta: "unidad" | "peso";
   cantidad: number;
+  piezas?: number;
   kilos: number;
   precio_unitario: number;
   descuento_unitario: number;
@@ -11,11 +13,27 @@ export type HistorialVentaItem = {
   unidad?: string;
 };
 
+export type MovimientoStock = {
+  id: number;
+  tipo: string;
+  productoId: number;
+  productoNombre: string;
+  productoUnidad?: string;
+  cantidad: string;
+  rutaId: number | null;
+  rutaNombre?: string;
+  usuarioId: number;
+  usuarioNombre: string;
+  notas?: string;
+  fecha: string;
+};
+
 export type HistorialVenta = {
   id: string;
   folio: string;
   fecha_iso: string;
   ruta: string;
+  ruta_nombre?: string;
   cliente_id: string;
   cliente_nombre: string;
   vendedor_id: string;
@@ -27,6 +45,8 @@ export type HistorialVenta = {
   abono: number;
   saldo_anterior: number;
   saldo_final: number;
+  pago_cliente?: number;
+  cambio?: number;
   items: HistorialVentaItem[];
 };
 
@@ -82,7 +102,10 @@ export async function listClientesHistorial(params: { rutaId: string }): Promise
       const clienteId = venta.clienteId.toString();
       if (clientesMap[clienteId]) {
         const mapped = mapVentaToHistorial(venta);
-        mapped.saldo_final = clientesMap[clienteId].saldo_actual || 0;
+        // Solo usar saldo del cliente si no viene del servidor
+        if (mapped.saldo_final === 0 && mapped.saldo_anterior === 0) {
+          mapped.saldo_final = clientesMap[clienteId].saldo_actual || 0;
+        }
         clientesMap[clienteId].ventas.push(mapped);
       }
     }
@@ -114,7 +137,10 @@ export async function listVentasVendedor(_params: { vendedorId: string }): Promi
       const mapped = mapVentaToHistorial(v);
       const clienteData = clienteMap[mapped.cliente_id];
       mapped.cliente_nombre = clienteData?.nombre || `Cliente ${mapped.cliente_id}`;
-      mapped.saldo_final = clienteData?.saldo || 0;
+      // Solo usar saldo del cliente si no viene del servidor (ventas sin saldo registrado)
+      if (mapped.saldo_final === 0 && mapped.saldo_anterior === 0) {
+        mapped.saldo_final = clienteData?.saldo || 0;
+      }
       return mapped;
     });
   } catch (e) {
@@ -125,16 +151,38 @@ export async function listVentasVendedor(_params: { vendedorId: string }): Promi
 
 function mapVentaToHistorial(venta: any): HistorialVenta {
   const items: HistorialVentaItem[] = (venta.items || []).map((item: any) => {
-    const unidad = item.productoUnidad || "PIEZA";
+    const unidad = (item.productoUnidad || item.unidad || "PIEZA").toUpperCase();
     const isPeso = unidad === "KG";
     const isMixto = unidad === "MIXTO";
-    const cantidad = n(item.cantidad);
+    const cantidadRaw = n(item.cantidad);
+    
+    // Usar campos piezas y kilos del servidor si existen
+    let piezas = 0;
+    let kilos = 0;
+    
+    if (isMixto) {
+      // Para MIXTO: usar piezas y kilos del servidor
+      piezas = n(item.piezas);
+      kilos = n(item.kilos);
+      // Fallback para ventas antiguas sin campos separados
+      if (piezas === 0 && kilos === 0 && cantidadRaw > 0) {
+        kilos = cantidadRaw;
+      }
+    } else if (isPeso) {
+      kilos = n(item.kilos) || cantidadRaw;
+      piezas = 0;
+    } else {
+      piezas = cantidadRaw;
+      kilos = 0;
+    }
     
     return {
+      productoId: item.productoId || 0,
       producto: item.productoNombre || `Producto ${item.productoId}`,
-      tipo_venta: isPeso ? "peso" as const : "unidad" as const,
-      cantidad: isPeso ? 0 : cantidad,
-      kilos: isPeso || isMixto ? cantidad : 0,
+      tipo_venta: isPeso || isMixto ? "peso" as const : "unidad" as const,
+      cantidad: piezas,
+      kilos: kilos,
+      piezas: piezas,
       precio_unitario: n(item.precioUnitario),
       descuento_unitario: n(item.descuento || 0),
       subtotal: n(item.subtotal),
@@ -167,6 +215,7 @@ function mapVentaToHistorial(venta: any): HistorialVenta {
       ? venta.fechaVenta.toISOString() 
       : String(venta.fechaVenta),
     ruta: venta.rutaId?.toString() || "",
+    ruta_nombre: venta.rutaNombre || "",
     cliente_id: venta.clienteId?.toString() || "",
     cliente_nombre: "",
     vendedor_id: venta.usuarioId?.toString() || "",
@@ -176,8 +225,10 @@ function mapVentaToHistorial(venta: any): HistorialVenta {
     descuentos,
     total,
     abono,
-    saldo_anterior: 0,
-    saldo_final: 0,
+    saldo_anterior: n(venta.saldoAnterior),
+    saldo_final: n(venta.saldoFinal),
+    pago_cliente: n(venta.pagoCliente),
+    cambio: n(venta.cambio),
     items,
   };
 }
@@ -192,8 +243,13 @@ export type VentaConRuta = {
   vendedor_id: string;
   vendedor_nombre: string;
   tipo_pago: string;
+  saldo_anterior?: number;
+  saldo_final?: number;
+  pago_cliente?: number;
+  cambio?: number;
   total: number;
   descuentos: number;
+  abono?: number;
   items: HistorialVentaItem[];
 };
 
@@ -220,21 +276,66 @@ export async function listTodasLasVentas(params: { fechaDesde?: string; fechaHas
       cliente_nombre: v.cliente_nombre || "",
       vendedor_id: String(v.usuarioId),
       vendedor_nombre: v.vendedorNombre || "",
-      tipo_pago: v.tipoPago === "contado" || v.tipoPago === "credito" ? v.tipoPago : "contado",
+      tipo_pago: v.tipoPago === "contado" || v.tipoPago === "credito" || v.tipoPago === "parcial" || v.tipoPago === "abono" ? v.tipoPago : "contado",
+      saldo_anterior: n(v.saldoAnterior),
+      saldo_final: n(v.saldoFinal),
+      pago_cliente: n(v.pagoCliente),
+      cambio: n(v.cambio),
       total: n(v.total),
       descuentos: n(v.descuentos),
-      items: (v.items || []).map((i: any) => ({
-        producto: i.productoNombre || "",
-        tipo_venta: i.unidad || "unidad",
-        cantidad: n(i.cantidad),
-        kilos: n(i.kilos),
-        precio_unitario: n(i.precioUnitario),
-        descuento_unitario: n(i.descuentoUnitario),
-        subtotal: n(i.subtotal),
-      })),
+      abono: n(v.abono),
+      items: (v.items || []).map((i: any) => {
+        const unidad = (i.unidad || i.productoUnidad || "PIEZA").toUpperCase();
+        const cantidad = n(i.cantidad);
+        const isMixto = unidad === "MIXTO";
+        const isKg = unidad === "KG";
+        return {
+          productoId: i.productoId || 0,
+          producto: i.productoNombre || "",
+          productoNombre: i.productoNombre || "",
+          unidad: unidad,
+          tipo_venta: unidad,
+          cantidad: cantidad,
+          piezas: isMixto ? n(i.piezas) : (isKg ? 0 : cantidad),
+          kilos: isKg ? cantidad : (isMixto ? n(i.kilos) : 0),
+          precio_unitario: n(i.precioUnitario),
+          precioUnitario: n(i.precioUnitario),
+          descuento_unitario: n(i.descuentoUnitario) || 0,
+          descuentoUnitario: n(i.descuentoUnitario) || 0,
+          subtotal: n(i.subtotal),
+        };
+      }),
     }));
   } catch (error) {
     console.error("Error fetching todas las ventas:", error);
+    return [];
+  }
+}
+
+// Obtener movimientos de stock por ruta y fecha
+export async function getMovimientosRuta(
+  rutaId: number,
+  fechaDesde?: string,
+  fechaHasta?: string
+): Promise<MovimientoStock[]> {
+  try {
+    const response = await apiClient.getMovimientosRuta(rutaId, fechaDesde, fechaHasta);
+    return (response.movimientos || []).map(m => ({
+      id: m.id,
+      tipo: m.tipo,
+      productoId: m.productoId,
+      productoNombre: m.productoNombre || `Producto #${m.productoId}`,
+      productoUnidad: m.productoUnidad || "PIEZA",
+      cantidad: m.cantidad,
+      rutaId: m.rutaId,
+      rutaNombre: m.rutaNombre,
+      usuarioId: m.usuarioId,
+      usuarioNombre: m.usuarioNombre || "",
+      notas: m.notas,
+      fecha: m.fecha,
+    }));
+  } catch (error) {
+    console.error("Error fetching movimientos ruta:", error);
     return [];
   }
 }

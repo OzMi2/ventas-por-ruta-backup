@@ -82,3 +82,11 @@ export function clearOfflineCache(): void {
 export function hasCachedData(): boolean {
   return !!localStorage.getItem(CACHE_KEYS.BOOTSTRAP);
 }
+
+export function clearBootstrapCache(): void {
+  localStorage.removeItem(CACHE_KEYS.BOOTSTRAP);
+  localStorage.removeItem(CACHE_KEYS.CLIENTES);
+  localStorage.removeItem(CACHE_KEYS.PRODUCTOS);
+  localStorage.removeItem(CACHE_KEYS.INVENTARIO);
+  localStorage.removeItem(CACHE_KEYS.INVENTARIO_MIXTO);
+}

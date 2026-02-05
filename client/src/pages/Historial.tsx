@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchInput } from "@/components/SearchInput";
-import { listRutas, listClientesHistorial, listTodasLasVentas, type HistorialCliente, type HistorialVenta, type Ruta } from "@/services/historial";
+import { listRutas, listClientesHistorial, listTodasLasVentas, getMovimientosRuta, type HistorialCliente, type HistorialVenta, type Ruta } from "@/services/historial";
+import { apiClient } from "@/lib/api";
 import { TicketModal, ReportModal } from "@/components/TicketPrint";
 import { PrinterIcon, ChevronRightIcon, CalendarIcon, FileTextIcon, DownloadIcon } from "lucide-react";
 import { exportReporteCompleto, exportVentasPorRutaToExcel } from "@/utils/exportExcel";
@@ -141,7 +142,12 @@ export default function HistorialPage() {
     for (const cliente of filtered) {
       for (const venta of cliente.ventas) {
         if (isVentaInDateRange(venta)) {
-          ventas.push(venta);
+          // Asegurar que cada venta tenga el nombre del cliente
+          ventas.push({
+            ...venta,
+            cliente_nombre: venta.cliente_nombre || cliente.cliente_nombre || "",
+            cliente_id: venta.cliente_id || cliente.cliente_id || "",
+          });
         }
       }
     }
@@ -158,10 +164,78 @@ export default function HistorialPage() {
         fechaDesde: fechaDesde || undefined, 
         fechaHasta: fechaHasta || undefined 
       });
+      
+      // Obtener movimientos e inventario de todas las rutas
+      const allMovimientos: any[] = [];
+      const allInventario: any[] = [];
+      
+      for (const r of rutas) {
+        const movs = await getMovimientosRuta(Number(r.id), fechaDesde || undefined, fechaHasta || undefined);
+        allMovimientos.push(...movs);
+        
+        // Obtener inventario actual de la ruta
+        const token = localStorage.getItem("auth_token");
+        try {
+          const invRes = await fetch(`/api/inventario/ruta/${r.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (invRes.ok) {
+            const invData = await invRes.json();
+            // Procesar inventario MIXTO
+            for (const inv of (invData.inventarioMixto || [])) {
+              allInventario.push({
+                rutaNombre: r.nombre,
+                productoId: inv.productoId,
+                productoNombre: inv.productoNombre || "",
+                piezas: Number(inv.cantidadPiezas) || 0,
+                kg: Number(inv.cantidadKg) || 0,
+                unidad: "MIXTO",
+              });
+            }
+            // Procesar inventario normal (no MIXTO)
+            for (const inv of (invData.inventario || [])) {
+              const prod = (invData.productos || []).find((p: any) => p.id === inv.productoId);
+              const unidad = prod?.unidad || inv.productoUnidad || "PIEZA";
+              if (unidad !== "MIXTO") {
+                allInventario.push({
+                  rutaNombre: r.nombre,
+                  productoId: inv.productoId,
+                  productoNombre: inv.productoNombre || "",
+                  piezas: unidad === "KG" ? 0 : Number(inv.cantidad) || 0,
+                  kg: unidad === "KG" ? Number(inv.cantidad) || 0 : 0,
+                  unidad: unidad,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching inventario ruta:", e);
+        }
+      }
+      
       const rangoLabel = fechaDesde && fechaHasta 
         ? (fechaDesde === fechaHasta ? fechaDesde : `${fechaDesde}_a_${fechaHasta}`)
         : "todas";
-      exportVentasPorRutaToExcel(allVentas, `ventas_todas_rutas_${rangoLabel}`);
+      
+      // Obtener productos y reglas de descuento
+      const [{ productos: productosApi }, { rules: reglasApi }] = await Promise.all([
+        apiClient.getProductos(),
+        apiClient.getDescuentos(),
+      ]);
+      const productosConPrecio = (productosApi || []).map((p: any) => ({
+        id: p.id,
+        nombre: p.nombre,
+        precio: Number(p.precio) || 0,
+        unidad: p.unidad || "PIEZA",
+      }));
+      const reglasDescuento = (reglasApi || []).map((r: any) => ({
+        productoId: r.productoId,
+        tiers: (r.tiers || []).map((t: any) => ({
+          volumenDesde: Number(t.volumenDesde) || 0,
+          descuentoMonto: Number(t.descuentoMonto) || 0,
+        })),
+      }));
+      exportVentasPorRutaToExcel(allVentas, `ventas_todas_rutas_${rangoLabel}`, allMovimientos, productosConPrecio, reglasDescuento, allInventario);
     } finally {
       setLoadingExport(false);
     }
@@ -196,11 +270,69 @@ export default function HistorialPage() {
                     <Button 
                       variant="outline" 
                       className="h-10 rounded-2xl font-black uppercase text-[10px] gap-1" 
-                      onClick={() => {
+                      onClick={async () => {
                         const rangoLabel = fechaDesde && fechaHasta 
                           ? (fechaDesde === fechaHasta ? fechaDesde : `${fechaDesde}_a_${fechaHasta}`)
                           : "todas";
-                        exportReporteCompleto(ventasFiltradas, rutaNombre, rangoLabel);
+                        // Convertir ventasFiltradas al formato VentaConRuta
+                        const ventasConRuta = ventasFiltradas.map(v => ({
+                          id: String(v.id),
+                          folio: String(v.id),
+                          fecha_iso: v.fecha_iso,
+                          ruta_nombre: rutaNombre,
+                          cliente_id: String(v.cliente_id),
+                          cliente_nombre: v.cliente_nombre,
+                          vendedor_id: "",
+                          vendedor_nombre: "",
+                          tipo_pago: v.tipo_pago,
+                          total: Number(v.total) || 0,
+                          descuentos: Number(v.descuentos) || 0,
+                          abono: Number(v.abono) || 0,
+                          items: (v.items || []).map(i => {
+                            const unidadStr = ((i as any).unidad || i.tipo_venta || "PIEZA").toUpperCase();
+                            const cantidadNum = Number(i.cantidad) || 0;
+                            const isMixto = unidadStr === "MIXTO";
+                            const isKg = unidadStr === "KG";
+                            return {
+                              productoId: Number((i as any).productoId) || Number((i as any).producto_id) || 0,
+                              producto_id: Number((i as any).productoId) || Number((i as any).producto_id) || 0,
+                              producto: i.producto || "",
+                              unidad: unidadStr,
+                              tipo_venta: unidadStr,
+                              cantidad: cantidadNum,
+                              piezas: isMixto ? Number((i as any).piezas) || 0 : (isKg ? 0 : cantidadNum),
+                              kilos: isMixto ? Number(i.kilos) || 0 : (isKg ? cantidadNum : 0),
+                              precio_unitario: Number(i.precio_unitario) || 0,
+                              precioUnitario: Number(i.precio_unitario) || 0,
+                              descuento_unitario: Number(i.descuento_unitario) || 0,
+                              descuentoUnitario: Number(i.descuento_unitario) || 0,
+                              subtotal: Number(i.subtotal) || 0,
+                            };
+                          }),
+                        }));
+                        
+                        // Obtener movimientos de la ruta
+                        const movs = rutaId ? await getMovimientosRuta(Number(rutaId), fechaDesde || undefined, fechaHasta || undefined) : [];
+                        
+                        // Obtener productos y reglas de descuento
+                        const [{ productos: productosApi }, { rules: reglasApi }] = await Promise.all([
+                          apiClient.getProductos(),
+                          apiClient.getDescuentos(),
+                        ]);
+                        const productosConPrecio = (productosApi || []).map((p: any) => ({
+                          id: p.id,
+                          nombre: p.nombre,
+                          precio: Number(p.precio) || 0,
+                          unidad: p.unidad || "PIEZA",
+                        }));
+                        const reglasDescuento = (reglasApi || []).map((r: any) => ({
+                          productoId: r.productoId,
+                          tiers: (r.tiers || []).map((t: any) => ({
+                            volumenDesde: Number(t.volumenDesde) || 0,
+                            descuentoMonto: Number(t.descuentoMonto) || 0,
+                          })),
+                        }));
+                        exportVentasPorRutaToExcel(ventasConRuta, `ventas_${rutaNombre}_${rangoLabel}`, movs, productosConPrecio, reglasDescuento);
                       }}
                       disabled={ventasFiltradas.length === 0}
                       data-testid="button-exportar-excel"
@@ -386,10 +518,10 @@ export default function HistorialPage() {
                   {activeVenta?.id === v.id ? (
                     <div className="mt-3 grid gap-2" data-testid={`panel-venta-detalle-${v.id}`}>
                       {(v.items || []).map((it, idx) => {
-                        const displayQty = it.tipo_venta === "peso" || it.unidad === "KG" 
+                        const displayQty = it.unidad === "MIXTO"
+                          ? `${it.piezas || it.cantidad} PZ + ${it.kilos.toFixed(2)} KG`
+                          : it.tipo_venta === "peso" || it.unidad === "KG" 
                           ? `${it.kilos.toFixed(2)} KG`
-                          : it.unidad === "MIXTO"
-                          ? `${it.cantidad} PZ + ${it.kilos.toFixed(2)} KG`
                           : `${it.cantidad} PZ`;
                         return (
                           <div key={idx} className="flex justify-between text-[11px] font-bold" data-testid={`row-venta-item-${v.id}-${idx}`}>

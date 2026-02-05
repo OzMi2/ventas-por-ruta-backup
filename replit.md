@@ -95,3 +95,46 @@ The application implements a volume-based discount system with:
 - **Vite**: Frontend build and dev server
 - **esbuild**: Server bundling for production
 - **TSX**: TypeScript execution for development
+
+### PWA / Offline-First Architecture
+- **Service Worker** (`client/public/sw.js`): Version 8 with three caching strategies:
+  - `cacheFirstWithOfflineFallback`: Static assets, falls back to offline.html
+  - `staleWhileRevalidate`: API GETs for bootstrap, productos, rutas, clientes, descuentos
+  - `networkFirst`: Other API requests
+- **Offline Page** (`client/public/offline.html`): Shows pending sales count, auto-redirects on reconnect
+- **Reconnect Flow**: `useOnlineStatus` hook detects reconnection, fires `app:reconnected` event, clears bootstrap cache to force fresh data
+- **Stock Adjustment**: `fetchProductos()` subtracts pending offline sales from displayed stock
+- **Cart Persistence**: Cart stored in localStorage via store reducer
+- **Icons**: Optimized icons at all sizes, separate maskable icons with safe-zone padding
+- **TWA Support**: `assetlinks.json` placeholder at `.well-known/assetlinks.json`
+
+### Key PWA Files
+- `client/public/sw.js` - Service Worker v8
+- `client/public/offline.html` - Offline fallback page
+- `client/public/manifest.json` - Web App Manifest
+- `client/public/.well-known/assetlinks.json` - Android App Links
+- `client/src/hooks/useOffline.ts` - Online status and reconnect hooks
+- `client/src/services/offlineCache.ts` - LocalStorage cache utilities
+- `client/src/services/productos.ts` - Includes pending stock adjustment logic
+
+### Advanced PWA Features
+- **Lazy Loading**: All routes use React.lazy() with Suspense for faster initial load
+- **Splash Screen**: Animated splash with progress bar, shown once per session
+- **Compression**: Express middleware with gzip/deflate, level 6, threshold 1024 bytes
+- **Low Data Mode**: `useLowDataMode` hook detects slow connections via Network Information API
+- **Background Sync**: SW registers 'sync-ventas' tag, listener posts message to clients
+- **Periodic Background Sync**: 'sync-ventas-periodic' for automatic scheduled sync
+- **Push Notifications**: SW handles push events, requires VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY env vars
+- **Price History**: Table historial_precios tracks price changes per product with user and timestamp
+- **Daily Reports**: GET /api/reportes/ventas-dia returns sales summary JSON for PDF generation
+
+### Push Notification Setup
+To enable push notifications, set these environment variables:
+- `VAPID_PUBLIC_KEY`: Base64 URL-safe public key
+- `VAPID_PRIVATE_KEY`: Base64 URL-safe private key
+
+Generate VAPID keys: `npx web-push generate-vapid-keys`
+
+### New Hooks
+- `client/src/hooks/usePushNotifications.ts` - Subscribe/unsubscribe to push notifications
+- `client/src/hooks/useLowDataMode.ts` - Detect slow network connections

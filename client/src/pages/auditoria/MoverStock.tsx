@@ -71,11 +71,15 @@ export default function MoverStockPage() {
       
       if (productosRes.ok) {
         const data = await productosRes.json();
-        setProductos(data.productos || []);
+        const productosOrdenados = (data.productos || []).sort((a: Producto, b: Producto) => a.id - b.id);
+        setProductos(productosOrdenados);
+      } else {
+        console.error("Error cargando productos:", productosRes.status);
       }
       if (rutasRes.ok) {
         const data = await rutasRes.json();
-        setRutas(data.rutas || []);
+        const rutasOrdenadas = (data.rutas || []).sort((a: Ruta, b: Ruta) => a.id - b.id);
+        setRutas(rutasOrdenadas);
       }
       if (bodegaRes.ok) {
         const data = await bodegaRes.json();
@@ -291,7 +295,7 @@ export default function MoverStockPage() {
                 <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-none font-bold" data-testid="select-ruta">
                   <SelectValue placeholder="Seleccionar ruta..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl">
+                <SelectContent className="rounded-2xl max-h-60 overflow-y-auto">
                   {rutas.map(r => (
                     <SelectItem key={r.id} value={r.id.toString()} className="font-bold">
                       <div className="flex items-center gap-2">

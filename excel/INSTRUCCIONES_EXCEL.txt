@@ -1,0 +1,83 @@
+============================================
+INSTRUCCIONES PARA USAR LA MACRO VBA
+Sistema de Ventas por Ruta - Garlo Alimentos
+============================================
+
+PASO 1: ABRIR EXCEL
+-------------------
+- Abre Microsoft Excel
+- Crea un nuevo libro en blanco
+
+PASO 2: ABRIR EL EDITOR VBA
+---------------------------
+- Presiona ALT + F11 para abrir el Editor de Visual Basic
+
+PASO 3: HABILITAR REFERENCIAS
+-----------------------------
+- En el Editor VBA, ve a: Herramientas > Referencias
+- Busca y marca estas opciones:
+  * Microsoft XML, v6.0
+  * Microsoft Scripting Runtime
+- Haz clic en Aceptar
+
+PASO 4: INSERTAR EL MODULO
+--------------------------
+- En el Editor VBA, ve a: Insertar > Modulo
+- Se abrira una ventana en blanco
+
+PASO 5: COPIAR EL CODIGO
+------------------------
+- Abre el archivo "VentasPorRuta_Macro.bas"
+- Copia TODO el contenido
+- Pegalo en la ventana del modulo
+
+PASO 6: CONFIGURAR CREDENCIALES
+-------------------------------
+- Busca estas lineas cerca del inicio del codigo:
+  
+  Private Const API_BASE_URL As String = "https://garloalimentos.com"
+  Private Const USERNAME As String = "admin"
+  Private Const PASSWORD As String = "1234"
+
+- Cambia USERNAME y PASSWORD por tus credenciales de acceso
+
+PASO 7: EJECUTAR LA MACRO
+-------------------------
+- Cierra el Editor VBA (X o Alt+Q)
+- Ve a: Vista > Macros > Ver Macros
+- Selecciona "CargarVentasEnTiempoReal"
+- Haz clic en "Ejecutar"
+
+RESULTADO
+---------
+La macro creara automaticamente:
+- Una hoja por cada ruta (R1, R2, R3, etc.)
+- Los datos ordenados del mas reciente al mas antiguo
+- Una fila en blanco separando cada dia
+- Los encabezados: Folio, Fecha, Hora, Cliente, Cantidad Compra, Tipo Pago, Subtotal, Descuentos, Total
+
+PARA ACTUALIZAR LOS DATOS
+-------------------------
+- Ejecuta nuevamente la macro "CargarVentasEnTiempoReal"
+- O ejecuta "ActualizarDatos"
+
+NOTAS IMPORTANTES
+-----------------
+- Necesitas conexion a internet para que funcione
+- Solo usuarios con rol "admin" o "auditor" pueden ver todas las ventas
+- Si usas un usuario "vendedor", solo veras tus propias ventas
+
+SOLUCION DE PROBLEMAS
+--------------------
+Error "No se pudo autenticar":
+- Verifica que el usuario y contrasena sean correctos
+- Asegurate de que el servidor este funcionando
+
+Error "Referencias no encontradas":
+- Asegurate de habilitar las referencias del Paso 3
+- Si no encuentras "Microsoft XML, v6.0", busca una version similar
+
+Error de permisos:
+- Asegurate de que las macros esten habilitadas en Excel
+- Ve a: Archivo > Opciones > Centro de confianza > Configuracion del centro de confianza > Configuracion de macros
+- Selecciona "Habilitar todas las macros"

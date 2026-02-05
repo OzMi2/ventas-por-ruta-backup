@@ -55,6 +55,7 @@ export default function CheckoutPage() {
   const maximoAbono = totalConSaldo;
   const pagoConNum = n(pagoCon);
   const abonoNum = n(abono);
+  // Cambio: cliente pagó más de lo que abona
   const cambio = pagoConNum > abonoNum ? pagoConNum - abonoNum : 0;
 
   function handleEnviarClick() {
@@ -100,18 +101,24 @@ export default function CheckoutPage() {
     const abonoPago = n(abono);
     if (abonoPago < 0) { setError("El abono no puede ser negativo."); return; }
 
+    const pagoConActual = n(pagoCon);
+    const cambioActual = pagoConActual > abonoPago ? pagoConActual - abonoPago : 0;
+    
     const payload = {
       usuario_id: state.session.usuario_id,
       cliente_id: state.selectedClient.id,
       ruta_id: state.session.rutaId,
       tipo_pago: tipoPago,
       abono_pago: abonoPago,
+      pago_cliente: pagoConActual,
+      cambio: cambioActual,
       folio_ticket: null,
       items: soloAbono ? [] : state.cart.map((it) => ({
         producto_id: it.producto_id,
         cantidad: it.cantidad ?? 0,
         kilos: it.kilos ?? 0,
-        precio_unitario: n(it.precio_aplicado),
+        precio_unitario: n(it.precio_base),
+        descuento_unitario: n(it.discount_unit),
         subtotal: subtotal(it),
       })),
     };
@@ -121,10 +128,44 @@ export default function CheckoutPage() {
       const res: any = await registrarVenta(payload);
       setConfirm(res);
 
-      // Ticket demo (sin backend de historial): construimos un ticket imprimible desde el carrito.
-      if (!soloAbono) {
-        const fecha_iso = new Date().toISOString();
+      // Ticket: construimos un ticket imprimible (venta o solo abono)
+      const fecha_iso = new Date().toISOString();
+      
+      if (soloAbono) {
+        // Ticket de solo abono (sin productos)
+        const rutaId = state.session.rutaId || (state.selectedClient as any)?.rutaId || "";
+        const ticket: HistorialVenta = {
+          id: `ticket_abono_${Date.now()}`,
+          folio: String(res?.folio_ticket || "—"),
+          fecha_iso,
+          ruta: String(rutaId),
+          ruta_nombre: String(rutaId),
+          cliente_id: String(state.selectedClient?.id || ""),
+          cliente_nombre: String(state.selectedClient?.nombre || ""),
+          vendedor_id: String(state.session.usuario_id),
+          vendedor_nombre: String(state.session.nombre || ""),
+          tipo_pago: "abono",
+          subtotal_base: 0,
+          descuentos: 0,
+          total: 0,
+          abono: n(abonoPago),
+          saldo_anterior: n(res?.saldo_anterior ?? saldoAnterior),
+          saldo_final: n(res?.saldo_final),
+          items: [{
+            producto: "ABONO",
+            tipo_venta: "unidad",
+            cantidad: 1,
+            kilos: 0,
+            precio_unitario: n(abonoPago),
+            descuento_unitario: 0,
+            subtotal: n(abonoPago),
+          }],
+        };
+        setLastTicket(ticket);
+        setShowTicket(true);
+      } else {
         const items = state.cart.map((it) => {
+          const isMixto = it.requiere_piezas;
           const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
           const precio_unitario = n(it.precio_base);
           const descuento_unitario = n(it.discount_unit);
@@ -132,7 +173,9 @@ export default function CheckoutPage() {
           return {
             producto: it.nombre,
             tipo_venta: it.tipo_venta,
+            unidad: isMixto ? "MIXTO" : (it.tipo_venta === "unidad" ? "PIEZA" : "KG"),
             cantidad: n(it.cantidad),
+            piezas: isMixto ? n(it.cantidad) : (it.tipo_venta === "unidad" ? n(it.cantidad) : 0),
             kilos: n(it.kilos),
             precio_unitario,
             descuento_unitario,
@@ -150,11 +193,13 @@ export default function CheckoutPage() {
         }, 0);
         const total_calc = subtotal_base_calc - descuentos_calc;
 
+        const rutaIdVenta = state.session.rutaId || (state.selectedClient as any)?.rutaId || "";
         const ticket: HistorialVenta = {
           id: `ticket_${Date.now()}`,
           folio: String(res?.folio_ticket || "—"),
           fecha_iso,
-          ruta: "—",
+          ruta: String(rutaIdVenta),
+          ruta_nombre: String(rutaIdVenta),
           cliente_id: String(state.selectedClient?.id || ""),
           cliente_nombre: String(state.selectedClient?.nombre || ""),
           vendedor_id: String(state.session.usuario_id),
@@ -164,8 +209,10 @@ export default function CheckoutPage() {
           descuentos: n(descuentos_calc),
           total: n(total_calc),
           abono: n(abonoPago),
-          saldo_anterior: n(saldoAnterior),
+          saldo_anterior: n(res?.saldo_anterior ?? saldoAnterior),
           saldo_final: n(res?.saldo_final),
+          pago_cliente: pagoConNum,
+          cambio: cambio,
           items,
         };
 
@@ -281,10 +328,16 @@ export default function CheckoutPage() {
                   <span className="text-sm font-bold">${subtotalBase.toFixed(2)}</span>
                 </div>
                 {totalDiscount > 0 && (
-                  <div className="flex justify-between items-center text-primary">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Descuentos</span>
-                    <span className="text-sm font-bold">-${totalDiscount.toFixed(2)}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between items-center text-primary">
+                      <span className="text-[10px] font-black uppercase tracking-widest">Descuentos</span>
+                      <span className="text-sm font-bold">-${totalDiscount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-2xl bg-green-500/10 border border-green-500/30">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-green-600">Total con Descuentos</span>
+                      <span className="text-lg font-black text-green-600">${total.toFixed(2)}</span>
+                    </div>
+                  </>
                 )}
                 <div className="flex justify-between items-center text-muted-foreground">
                   <span className="text-[10px] font-black uppercase tracking-widest">Saldo Anterior</span>
@@ -364,8 +417,30 @@ export default function CheckoutPage() {
               <div className="text-center text-lg font-bold">
                 ¿Has revisado el carrito?
               </div>
-              <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-muted-foreground mb-2">
                 {state.cart.length} producto(s) · Total: ${total.toFixed(2)}
+              </div>
+              <div className="max-h-40 overflow-y-auto border rounded-lg p-2 bg-muted/30">
+                {state.cart.map((it, idx) => {
+                  const tipoVenta = it.tipo_venta || "unidad";
+                  let cantidadStr = "";
+                  // MIXTO: requiere_piezas=true y tiene kilos
+                  if (it.requiere_piezas && it.kilos) {
+                    const pzs = it.cantidad || 0;
+                    const kgs = it.kilos || 0;
+                    cantidadStr = `${pzs} Pzas / ${kgs.toFixed(2)} Kg`;
+                  } else if (tipoVenta === "peso") {
+                    cantidadStr = `${(it.kilos || 0).toFixed(2)} Kg`;
+                  } else {
+                    cantidadStr = `${it.cantidad || 0} Pzas`;
+                  }
+                  return (
+                    <div key={idx} className="flex justify-between text-xs py-1 border-b last:border-0">
+                      <span className="font-medium">{it.nombre || "Producto"}</span>
+                      <span className="text-muted-foreground">{cantidadStr} · ${subtotal(it).toFixed(2)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <DialogFooter className="grid grid-cols-2 gap-2">
@@ -444,7 +519,12 @@ export default function CheckoutPage() {
         <TicketModal 
           venta={lastTicket} 
           open={showTicket} 
-          onClose={() => setShowTicket(false)} 
+          onClose={() => setShowTicket(false)}
+          isAbono={lastTicket?.tipo_pago === "abono"}
+          onVolver={() => {
+            setShowTicket(false);
+            window.location.href = "/";
+          }}
         />
       </div>
     </AppShell>

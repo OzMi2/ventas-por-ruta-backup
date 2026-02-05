@@ -1,0 +1,121 @@
+Actúa como un auditor técnico y documentador senior de software.
+
+Tengo este proyecto PWA ejecutándose en Replit (frontend + backend).
+Tu tarea es ANALIZAR EL PROYECTO EXISTENTE y DOCUMENTARLO, no reescribirlo.
+
+OBJETIVO
+Quiero entender exactamente:
+- cómo funciona mi PWA,
+- cómo fluye la información,
+- cómo se guardan las transacciones,
+- qué depende de qué,
+- y qué necesitaría para extenderlo a modo POS offline y app Android.
+
+NO generes código nuevo hasta terminar la documentación.
+
+------------------------------------------------
+1) ANÁLISIS GENERAL
+------------------------------------------------
+Explícame:
+- Tipo de arquitectura (SPA, PWA, API REST, etc.)
+- Qué corre en frontend y qué en backend
+- Cómo se comunican (endpoints, auth)
+- Qué partes son críticas para ventas/transacciones
+
+------------------------------------------------
+2) FRONTEND (PWA)
+------------------------------------------------
+Documenta:
+- Frameworks usados (React, Vite, etc.)
+- Punto de entrada (main.tsx / index.tsx)
+- Enrutamiento (qué librería y cómo se define)
+- Manejo de estado (Context, Query, Redux, etc.)
+- Manejo de offline actual (service workers, cache, localStorage, IndexedDB)
+- Flujo completo de una venta desde UI hasta envío al backend
+- Qué pasa si el usuario cierra la app a mitad del proceso
+
+------------------------------------------------
+3) SERVICE WORKER (SI EXISTE)
+------------------------------------------------
+Indica:
+- Dónde está definido
+- Qué archivos cachea
+- Estrategia de cache (cache-first, network-first, etc.)
+- Limitaciones actuales para POS offline
+
+------------------------------------------------
+4) BACKEND (API)
+------------------------------------------------
+Documenta:
+- Framework (Express)
+- Punto de entrada del servidor
+- Middlewares (auth, cors, validaciones)
+- Endpoints críticos (ventas, usuarios, clientes, productos)
+- Validaciones y reglas de negocio importantes
+- Qué sucede si llega una petición duplicada
+
+------------------------------------------------
+5) BASE DE DATOS (POSTGRESQL)
+------------------------------------------------
+Describe:
+- Tablas principales
+- Relaciones clave
+- Qué tablas guardan transacciones
+- Cómo se identifica una venta (id, folio, timestamp)
+- Riesgos actuales de duplicados
+
+------------------------------------------------
+6) FLUJO DE TRANSACCIÓN (PASO A PASO)
+------------------------------------------------
+Explícame en texto y diagrama lógico:
+1) Usuario inicia una venta
+2) Usuario confirma
+3) Datos se guardan en frontend
+4) Datos viajan al backend
+5) Backend valida
+6) Backend guarda en BD
+7) Respuesta al cliente
+8) Impresión (si existe)
+
+------------------------------------------------
+7) PUNTOS DÉBILES PARA POS OFFLINE
+------------------------------------------------
+Identifica claramente:
+- Qué se perdería si no hay internet
+- Qué se pierde si se cierra la app
+- Qué depende demasiado del navegador
+- Qué NO es seguro para un POS
+
+------------------------------------------------
+8) REQUERIMIENTOS PARA OFFLINE REAL
+------------------------------------------------
+Enumera:
+- Qué partes deben moverse a base local (SQLite)
+- Qué datos deben cachearse
+- Qué reglas deben duplicarse en cliente
+- Qué cambios mínimos se necesitan en el backend (idempotencia, sync)
+
+------------------------------------------------
+9) RECOMENDACIÓN DE ARQUITECTURA FINAL
+------------------------------------------------
+Propón:
+- Arquitectura ideal PWA + Android POS
+- Qué reutilizar
+- Qué no tocar
+- Qué extender
+- Riesgos y mitigaciones
+
+------------------------------------------------
+10) ENTREGABLE FINAL
+------------------------------------------------
+Genera:
+- README técnico del proyecto
+- Mapa de carpetas con explicación
+- Flujo de datos (texto claro)
+- Checklist de preparación para Android POS
+
+REGLAS
+- Sé específico con nombres de archivos y carpetas reales.
+- No asumas nada que no esté en el proyecto.
+- Si falta información, indícalo claramente.
+- No generes código aún.
