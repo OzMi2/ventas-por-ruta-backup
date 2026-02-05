@@ -133,20 +133,32 @@ export function TicketPrint({ venta }: { venta: HistorialVenta }) {
                 const isMixto = (it as any).unidad === "MIXTO";
                 const qty = chargedQty(it);
                 const unit = isMixto ? "KG" : (it.tipo_venta === "unidad" ? "PZ" : "KG");
-                const priceBase = n(it.precio_unitario);
-                const lineSubtotal = qty * priceBase;
+                const precioBase = n((it as any).precio_base || it.precio_unitario);
+                const descuentoUnit = n((it as any).descuento_unitario || (it as any).discount_unit || 0);
+                const precioFinal = n(it.precio_unitario);
+                const lineSubtotal = qty * precioFinal;
                 const piezas = isMixto ? n((it as any).piezas) : (it.tipo_venta === "unidad" ? qty : 0);
                 const kilos = isMixto ? n(it.kilos) : (it.tipo_venta === "unidad" ? 0 : qty);
+                const hasDiscount = descuentoUnit > 0;
 
                 return (
-                  <tr key={idx} data-testid={`ticket-item-${idx}`}>
-                    <td className="text-left">{it.producto}</td>
-                    <td>{unit}</td>
-                    <td>{n(piezas).toFixed(0)}</td>
-                    <td>{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
-                    <td>{fmtMoney(priceBase)}</td>
-                    <td className="text-right">{fmtMoney(lineSubtotal)}</td>
-                  </tr>
+                  <React.Fragment key={idx}>
+                    <tr data-testid={`ticket-item-${idx}`}>
+                      <td className="text-left">{it.producto}</td>
+                      <td>{unit}</td>
+                      <td>{n(piezas).toFixed(0)}</td>
+                      <td>{kilos > 0 ? kilos.toFixed(3) : "-"}</td>
+                      <td>{fmtMoney(precioFinal)}</td>
+                      <td className="text-right">{fmtMoney(lineSubtotal)}</td>
+                    </tr>
+                    {hasDiscount && (
+                      <tr className="ticket__discount-row">
+                        <td colSpan={6} className="text-left" style={{ fontSize: '8px', color: '#666', paddingTop: 0 }}>
+                          &nbsp;&nbsp;↳ Desc: -{fmtMoney(descuentoUnit)}/{unit.toLowerCase()} (Base: {fmtMoney(precioBase)})
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -321,20 +333,30 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
     const unidad = (it.unidad || "").toUpperCase();
     const isMixto = unidad === "MIXTO";
     const unit = it.tipo_venta === "unidad" ? "PZ" : (isMixto ? "MIXTO" : "KG");
-    const base = num(it.precio_unitario);
-    const lineSubtotal = q * base;
-    // Para MIXTO usar campos piezas y kilos separados
+    const precioBase = num(it.precio_base || it.precio_unitario);
+    const descuentoUnit = num(it.descuento_unitario || it.discount_unit || 0);
+    const precioFinal = num(it.precio_unitario);
+    const lineSubtotal = q * precioFinal;
     const piezas = isMixto ? num(it.piezas) : (it.tipo_venta === "unidad" ? q : 0);
     const kilos = isMixto ? num(it.kilos) : (it.tipo_venta === "unidad" ? 0 : q);
+    const hasDiscount = descuentoUnit > 0;
 
-    return `<tr>
+    let row = `<tr>
       <td>${esc(it.producto)}</td>
       <td>${unit}</td>
       <td>${num(piezas).toFixed(0)}</td>
       <td>${kilos > 0 ? kilos.toFixed(3) : "-"}</td>
-      <td>${money(base)}</td>
+      <td>${money(precioFinal)}</td>
       <td>${money(lineSubtotal)}</td>
     </tr>`;
+    
+    if (hasDiscount) {
+      row += `<tr style="font-size:8px;color:#666;">
+        <td colspan="6" style="padding-top:0;">&nbsp;&nbsp;↳ Desc: -${money(descuentoUnit)}/${unit.toLowerCase()} (Base: ${money(precioBase)})</td>
+      </tr>`;
+    }
+    
+    return row;
   }).join("");
 
   const pagoClienteNum = num((v as any).pago_cliente);
@@ -505,14 +527,20 @@ export function TicketModal({ venta, open, onClose, isAbono, onVolver }: TicketM
       venta.items.forEach((it) => {
         const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
         const unit = it.tipo_venta === "unidad" ? "pz" : "kg";
-        const subtotal = qty * n(it.precio_unitario);
+        const precioBase = n((it as any).precio_base || it.precio_unitario);
+        const descuentoUnit = n((it as any).descuento_unitario || (it as any).discount_unit || 0);
+        const precioFinal = n(it.precio_unitario);
+        const subtotal = qty * precioFinal;
         lines.push(`• ${it.producto}`);
-        lines.push(`  ${qty.toFixed(it.tipo_venta === "unidad" ? 0 : 3)}${unit} x ${fmtMoney(it.precio_unitario)} = ${fmtMoney(subtotal)}`);
+        lines.push(`  ${qty.toFixed(it.tipo_venta === "unidad" ? 0 : 3)}${unit} x ${fmtMoney(precioFinal)} = ${fmtMoney(subtotal)}`);
+        if (descuentoUnit > 0) {
+          lines.push(`  💰 Desc: -${fmtMoney(descuentoUnit)}/${unit} (Base: ${fmtMoney(precioBase)})`);
+        }
       });
       lines.push("─────────────────");
       lines.push(`Subtotal: ${fmtMoney(venta.subtotal_base)}`);
       if (n(venta.descuentos) > 0) {
-        lines.push(`Descuento: -${fmtMoney(venta.descuentos)}`);
+        lines.push(`Descuento total: -${fmtMoney(venta.descuentos)}`);
       }
       lines.push(`*TOTAL: ${fmtMoney(venta.total)}*`);
       lines.push(`Saldo anterior: ${fmtMoney(venta.saldo_anterior)}`);
