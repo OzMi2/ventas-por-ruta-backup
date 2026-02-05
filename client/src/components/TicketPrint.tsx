@@ -134,9 +134,10 @@ export function TicketPrint({ venta }: { venta: HistorialVenta }) {
                 const qty = chargedQty(it);
                 const unit = isMixto ? "KG" : (it.tipo_venta === "unidad" ? "PZ" : "KG");
                 const descuentoUnit = n((it as any).descuento_unitario || (it as any).discount_unit || 0);
-                const precioFinal = n(it.precio_unitario);
-                // Precio base = precio final + descuento (el descuento se resta del base para obtener el final)
-                const precioBase = precioFinal + descuentoUnit;
+                // precioUnitario = precio base del producto
+                const precioBase = n(it.precio_unitario);
+                // precioFinal = precio base - descuento aplicado
+                const precioFinal = precioBase - descuentoUnit;
                 const lineSubtotal = qty * precioFinal;
                 const piezas = isMixto ? n((it as any).piezas) : (it.tipo_venta === "unidad" ? qty : 0);
                 const kilos = isMixto ? n(it.kilos) : (it.tipo_venta === "unidad" ? 0 : qty);
@@ -335,9 +336,10 @@ export function openTicketPrintWindow(venta: HistorialVenta) {
     const isMixto = unidad === "MIXTO";
     const unit = it.tipo_venta === "unidad" ? "PZ" : (isMixto ? "MIXTO" : "KG");
     const descuentoUnit = num(it.descuento_unitario || it.discount_unit || 0);
-    const precioFinal = num(it.precio_unitario);
-    // Precio base = precio final + descuento (el descuento se resta del base para obtener el final)
-    const precioBase = precioFinal + descuentoUnit;
+    // precioUnitario = precio base del producto
+    const precioBase = num(it.precio_unitario);
+    // precioFinal = precio base - descuento aplicado
+    const precioFinal = precioBase - descuentoUnit;
     const lineSubtotal = q * precioFinal;
     const piezas = isMixto ? num(it.piezas) : (it.tipo_venta === "unidad" ? q : 0);
     const kilos = isMixto ? num(it.kilos) : (it.tipo_venta === "unidad" ? 0 : q);
@@ -530,9 +532,10 @@ export function TicketModal({ venta, open, onClose, isAbono, onVolver }: TicketM
         const qty = it.tipo_venta === "unidad" ? n(it.cantidad) : n(it.kilos);
         const unit = it.tipo_venta === "unidad" ? "pz" : "kg";
         const descuentoUnit = n((it as any).descuento_unitario || (it as any).discount_unit || 0);
-        const precioFinal = n(it.precio_unitario);
-        // Precio base = precio final + descuento (el descuento se resta del base para obtener el final)
-        const precioBase = precioFinal + descuentoUnit;
+        // precioUnitario = precio base del producto
+        const precioBase = n(it.precio_unitario);
+        // precioFinal = precio base - descuento aplicado
+        const precioFinal = precioBase - descuentoUnit;
         const subtotal = qty * precioFinal;
         lines.push(`• ${it.producto}`);
         lines.push(`  ${qty.toFixed(it.tipo_venta === "unidad" ? 0 : 3)}${unit} x ${fmtMoney(precioFinal)} = ${fmtMoney(subtotal)}`);

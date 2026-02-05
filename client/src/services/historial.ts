@@ -7,9 +7,8 @@ export type HistorialVentaItem = {
   cantidad: number;
   piezas?: number;
   kilos: number;
-  precio_unitario: number;
-  descuento_unitario: number;
-  precio_base?: number;
+  precio_unitario: number; // Precio BASE del producto (sin descuento)
+  descuento_unitario: number; // Monto de descuento por unidad
   subtotal: number;
   unidad?: string;
 };
@@ -184,9 +183,8 @@ function mapVentaToHistorial(venta: any): HistorialVenta {
       cantidad: piezas,
       kilos: kilos,
       piezas: piezas,
-      precio_unitario: n(item.precioUnitario),
-      descuento_unitario: n(item.descuentoUnitario || item.descuento || 0),
-      precio_base: n(item.precioBase || item.precioUnitario),
+      precio_unitario: n(item.precioUnitario), // Este es el precio BASE del producto
+      descuento_unitario: n(item.descuentoUnitario || item.descuento || 0), // Descuento por unidad
       subtotal: n(item.subtotal),
       unidad,
     };
