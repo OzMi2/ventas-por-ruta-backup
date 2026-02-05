@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `ventas-static-${CACHE_VERSION}`;
 const API_CACHE = `ventas-api-${CACHE_VERSION}`;
 
