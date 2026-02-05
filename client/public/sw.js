@@ -1,6 +1,7 @@
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const STATIC_CACHE = `ventas-static-${CACHE_VERSION}`;
 const API_CACHE = `ventas-api-${CACHE_VERSION}`;
+const ASSETS_CACHE = `ventas-assets-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
@@ -39,7 +40,8 @@ self.addEventListener('activate', (event) => {
           .filter((name) => {
             return name.startsWith('ventas-') && 
                    name !== STATIC_CACHE && 
-                   name !== API_CACHE;
+                   name !== API_CACHE &&
+                   name !== ASSETS_CACHE;
           })
           .map((name) => {
             console.log('SW: Deleting old cache:', name);
@@ -75,6 +77,10 @@ self.addEventListener('fetch', (event) => {
     } else {
       event.respondWith(networkFirst(request));
     }
+  } else if (url.pathname.startsWith('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(cacheFirstForAssets(request));
+  } else if (request.mode === 'navigate') {
+    event.respondWith(handleNavigation(request));
   } else {
     event.respondWith(cacheFirstWithOfflineFallback(request));
   }
@@ -82,6 +88,58 @@ self.addEventListener('fetch', (event) => {
 
 function shouldCacheApiRequest(pathname) {
   return API_CACHE_URLS.some(url => pathname.startsWith(url));
+}
+
+async function cacheFirstForAssets(request) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(ASSETS_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    console.warn('SW: Failed to fetch asset:', request.url);
+    return new Response('Asset not available offline', { 
+      status: 503, 
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+}
+
+async function handleNavigation(request) {
+  const cachedIndex = await caches.match('/index.html');
+  
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put('/index.html', response.clone());
+      return response;
+    }
+    if (cachedIndex) {
+      return cachedIndex;
+    }
+    return response;
+  } catch (error) {
+    if (cachedIndex) {
+      console.log('SW: Serving cached index.html for navigation');
+      return cachedIndex;
+    }
+    const offlinePage = await caches.match('/offline.html');
+    if (offlinePage) {
+      return offlinePage;
+    }
+    return new Response('Sin conexión', { 
+      status: 503, 
+      headers: { 'Content-Type': 'text/html' }
+    });
+  }
 }
 
 async function cacheFirstWithOfflineFallback(request) {
@@ -98,13 +156,6 @@ async function cacheFirstWithOfflineFallback(request) {
     }
     return response;
   } catch (error) {
-    const url = new URL(request.url);
-    if (request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
-      const offlinePage = await caches.match('/offline.html');
-      if (offlinePage) {
-        return offlinePage;
-      }
-    }
     return new Response('Sin conexión', { 
       status: 503, 
       statusText: 'Service Unavailable',
@@ -137,11 +188,7 @@ async function staleWhileRevalidate(request, cacheName) {
     return networkResponse;
   }
 
-  return new Response(JSON.stringify({ 
-    error: 'Sin conexión', 
-    offline: true,
-    cached: false 
-  }), {
+  return new Response(JSON.stringify({ error: 'Sin conexión', offline: true }), {
     status: 503,
     headers: { 'Content-Type': 'application/json' }
   });
@@ -156,10 +203,7 @@ async function networkFirst(request) {
     if (cached) {
       return cached;
     }
-    return new Response(JSON.stringify({ 
-      error: 'Sin conexión',
-      offline: true 
-    }), {
+    return new Response(JSON.stringify({ error: 'Sin conexión', offline: true }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -182,81 +226,67 @@ self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'sync-ventas-periodic') {
     event.waitUntil(
       self.clients.matchAll().then(clients => {
-        if (clients.length > 0) {
-          clients[0].postMessage({ type: 'PERIODIC_SYNC_VENTAS' });
-        }
+        clients.forEach(client => {
+          client.postMessage({ type: 'SYNC_VENTAS_PERIODIC' });
+        });
       })
     );
   }
 });
 
-async function registerBackgroundSync() {
-  if ('sync' in self.registration) {
-    try {
-      await self.registration.sync.register('sync-ventas');
-      console.log('Background sync registered');
-    } catch (err) {
-      console.log('Background sync registration failed:', err);
-    }
-  }
-}
-
-self.addEventListener('message', (event) => {
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting();
-  }
-  
-  if (event.data === 'getVersion') {
-    event.ports[0].postMessage({ version: CACHE_VERSION });
-  }
-  
-  if (event.data === 'clearApiCache') {
-    caches.delete(API_CACHE).then(() => {
-      event.ports[0]?.postMessage({ cleared: true });
-    });
-  }
-
-  if (event.data === 'registerSync') {
-    registerBackgroundSync();
-  }
-});
-
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  
+
   try {
     const data = event.data.json();
+    const title = data.title || 'Ventas por Ruta';
     const options = {
       body: data.body || 'Nueva notificación',
-      icon: data.icon || '/icons/icon-192.png',
-      badge: data.badge || '/icons/badge-72.png',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
       vibrate: [100, 50, 100],
-      data: { url: data.url || '/' },
-      actions: data.actions || [],
-      tag: data.tag || 'default',
-      renotify: true,
+      data: data.data || {},
+      actions: data.actions || []
     };
-    
+
     event.waitUntil(
-      self.registration.showNotification(data.title || 'Garlo Alimentos', options)
+      self.registration.showNotification(title, options)
     );
-  } catch (err) {
-    console.error('Push notification error:', err);
+  } catch (error) {
+    console.error('SW: Error processing push notification:', error);
   }
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   const urlToOpen = event.notification.data?.url || '/';
-  
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      const hadClient = clients.find(c => c.url === urlToOpen && 'focus' in c);
-      if (hadClient) {
-        return hadClient.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.focus();
+          if (urlToOpen !== '/') {
+            client.navigate(urlToOpen);
+          }
+          return;
+        }
       }
       return self.clients.openWindow(urlToOpen);
     })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_BOOTSTRAP_CACHE') {
+    caches.open(API_CACHE).then(cache => {
+      cache.delete('/api/me/bootstrap');
+      console.log('SW: Bootstrap cache cleared');
+    });
+  }
 });
