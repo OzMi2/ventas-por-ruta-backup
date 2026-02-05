@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { login } from "@/services/auth";
+import { precacheEverything } from "@/services/precache";
 import { useAppStore } from "@/store/store";
 
 function safeString(v: any) {
@@ -21,6 +22,8 @@ export default function LoginPage() {
   const [usuario, setUsuario] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [precaching, setPrecaching] = React.useState(false);
+  const [precacheStatus, setPrecacheStatus] = React.useState<string>("");
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -50,7 +53,19 @@ export default function LoginPage() {
 
       dispatch({ type: "SESSION_SET", session });
       toast({ title: "Sesión iniciada", description: `Bienvenido/a ${session.nombre}`.trim() });
-      setLocation("/clientes");
+      
+      setPrecaching(true);
+      setPrecacheStatus("Preparando app para uso offline...");
+      
+      precacheEverything((step) => setPrecacheStatus(step))
+        .then(() => {
+          toast({ title: "App lista", description: "Todos los datos están cacheados para uso offline" });
+        })
+        .catch(() => {})
+        .finally(() => {
+          setPrecaching(false);
+          setLocation("/clientes");
+        });
     } catch (e: any) {
       setError(e?.message || "No se pudo iniciar sesión.");
     } finally {
@@ -117,9 +132,16 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button type="submit" size="lg" className="h-12 rounded-xl text-base font-bold shadow-lg shadow-primary/20" disabled={loading} data-testid="button-login">
-                {loading ? "Entrando..." : "Iniciar Sesión"}
+              <Button type="submit" size="lg" className="h-12 rounded-xl text-base font-bold shadow-lg shadow-primary/20" disabled={loading || precaching} data-testid="button-login">
+                {loading ? "Entrando..." : precaching ? "Cargando datos..." : "Iniciar Sesión"}
               </Button>
+
+              {precaching && (
+                <div className="mt-2 p-3 rounded-xl bg-primary/10 text-center animate-pulse">
+                  <div className="text-xs font-bold text-primary">{precacheStatus}</div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">Esto solo ocurre una vez</div>
+                </div>
+              )}
 
               <div className="mt-2 text-xs text-muted-foreground" data-testid="text-login-hint">
                 Tip: configura la URL del API (IP/puerto) en "Configuración" si no es la predeterminada.
