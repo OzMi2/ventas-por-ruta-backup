@@ -140,21 +140,21 @@ export default function ClientesPage() {
         )}
 
         {state.selectedClient ? (
-          <div className="sticky bottom-20 sm:bottom-4 left-0 right-0 animate-in slide-in-from-bottom-4">
-            <div className="rounded-2xl shadow-xl border-primary/20 bg-primary text-primary-foreground p-4">
+          <div className="fixed bottom-[72px] sm:bottom-4 left-4 right-4 z-40 animate-in slide-in-from-bottom-4">
+            <div className="rounded-2xl shadow-xl border-primary/20 bg-primary text-primary-foreground p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-black uppercase tracking-widest opacity-80">Cliente Actual</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-black uppercase tracking-widest opacity-80">Cliente</div>
                   <div className="text-sm font-bold truncate">{state.selectedClient.nombre}</div>
                 </div>
                 <Button
                   onClick={() => navigate("/productos")}
-                  className="shrink-0 bg-white/20 hover:bg-white/30 text-white border-none h-10 px-4 rounded-xl font-bold"
+                  className="shrink-0 bg-white/20 hover:bg-white/30 text-white border-none h-9 px-3 rounded-xl font-bold text-xs"
                   data-testid="button-go-inventory"
                 >
-                  <BoxesIcon className="h-4 w-4 mr-2" />
+                  <BoxesIcon className="h-4 w-4 mr-1" />
                   Inventario
-                  <ArrowRightIcon className="h-4 w-4 ml-1" />
+                  <ArrowRightIcon className="h-3 w-3 ml-1" />
                 </Button>
               </div>
             </div>
