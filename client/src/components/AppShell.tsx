@@ -177,15 +177,15 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
           </div>
         </header>
 
-        <main className="flex-1 pb-20 sm:pb-4">
+        <main className="flex-1 pb-[72px] sm:pb-4">
           <div className="app-noise app-grid min-h-[calc(100svh-56px)]">
             <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">{children}</div>
           </div>
         </main>
 
         {role === "vendedor" && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden">
-            <div className="flex items-center justify-around py-2">
+          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.1)] sm:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div className="flex items-center justify-around py-2.5">
               <Link href="/clientes" data-testid="nav-bottom-clientes">
                 <div className={`flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors ${location === '/clientes' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
                   <UsersIcon className="h-5 w-5" />
@@ -222,8 +222,8 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
         )}
 
         {(role === "admin" || role === "auditor") && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden">
-            <div className="flex items-center justify-around py-2">
+          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.1)] sm:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div className="flex items-center justify-around py-2.5">
               <Link href="/historial" data-testid="nav-bottom-historial-admin">
                 <div className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${location === '/historial' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
                   <ReceiptIcon className="h-5 w-5" />

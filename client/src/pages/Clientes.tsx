@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useLocation } from "wouter";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchInput } from "@/components/SearchInput";
+import { BoxesIcon, ArrowRightIcon } from "lucide-react";
 import { fetchClientes } from "@/services/clientes";
 import { useAppStore } from "@/store/store";
 import type { Cliente } from "@/store/types";
@@ -25,6 +27,7 @@ function mapCliente(raw: any, idx: number): Cliente {
 }
 
 export default function ClientesPage() {
+  const [, navigate] = useLocation();
   const { state, dispatch } = useAppStore();
   const [q, setQ] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -137,13 +140,24 @@ export default function ClientesPage() {
         )}
 
         {state.selectedClient ? (
-          <div className="sticky bottom-4 left-0 right-0 animate-in slide-in-from-bottom-4">
-            <Alert className="rounded-2xl shadow-xl border-primary/20 bg-primary text-primary-foreground">
-              <AlertTitle className="text-xs font-black uppercase tracking-widest">Cliente Actual</AlertTitle>
-              <AlertDescription className="text-sm font-bold">
-                {state.selectedClient.nombre}
-              </AlertDescription>
-            </Alert>
+          <div className="sticky bottom-20 sm:bottom-4 left-0 right-0 animate-in slide-in-from-bottom-4">
+            <div className="rounded-2xl shadow-xl border-primary/20 bg-primary text-primary-foreground p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-black uppercase tracking-widest opacity-80">Cliente Actual</div>
+                  <div className="text-sm font-bold truncate">{state.selectedClient.nombre}</div>
+                </div>
+                <Button
+                  onClick={() => navigate("/productos")}
+                  className="shrink-0 bg-white/20 hover:bg-white/30 text-white border-none h-10 px-4 rounded-xl font-bold"
+                  data-testid="button-go-inventory"
+                >
+                  <BoxesIcon className="h-4 w-4 mr-2" />
+                  Inventario
+                  <ArrowRightIcon className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         ) : null}
       </div>

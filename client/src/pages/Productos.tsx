@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useLocation } from "wouter";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchInput } from "@/components/SearchInput";
-import { ShoppingCartIcon, AlertTriangleIcon, XIcon } from "lucide-react";
+import { ShoppingCartIcon, AlertTriangleIcon, XIcon, ArrowRightIcon, CheckCircleIcon } from "lucide-react";
 import { getLowStockSummary } from "@/hooks/useLowStockAlerts";
 import { fetchProductos } from "@/services/productos";
 import { fetchDiscounts, findApplicableDiscount, type DiscountRule } from "@/services/discounts";
@@ -53,6 +54,7 @@ function subtotalFor(p: Producto, cantidad?: number, kilos?: number, discounts: 
 }
 
 export default function ProductosPage() {
+  const [, navigate] = useLocation();
   const { state, dispatch } = useAppStore();
   const vendedorId = state.session?.usuario_id;
   const clienteId = state.selectedClient?.id;
@@ -69,6 +71,8 @@ export default function ProductosPage() {
   const [cantidad, setCantidad] = React.useState<string>("");
   const [kilos, setKilos] = React.useState<string>("");
   const [showLowStockAlert, setShowLowStockAlert] = React.useState(true);
+  const [showAddedSuccess, setShowAddedSuccess] = React.useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = React.useState<string>("");
 
   async function load() {
     setLoading(true);
@@ -175,7 +179,10 @@ export default function ProductosPage() {
       },
     });
 
+    setLastAddedProduct(selected.nombre);
     setOpen(false);
+    setShowAddedSuccess(true);
+    setTimeout(() => setShowAddedSuccess(false), 5000);
   }
 
   const previewSubtotal = selected
@@ -303,6 +310,34 @@ export default function ProductosPage() {
                 </div>
               </Card>
             ))}
+          </div>
+        )}
+
+        {showAddedSuccess && (
+          <div className="sticky bottom-20 sm:bottom-4 left-0 right-0 animate-in slide-in-from-bottom-4 z-40">
+            <div className="rounded-2xl shadow-xl bg-green-600 text-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CheckCircleIcon className="h-5 w-5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold opacity-80">Agregado al carrito</div>
+                    <div className="text-sm font-bold truncate">{lastAddedProduct}</div>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => {
+                    setShowAddedSuccess(false);
+                    navigate("/checkout");
+                  }}
+                  className="shrink-0 bg-white/20 hover:bg-white/30 text-white border-none h-10 px-4 rounded-xl font-bold"
+                  data-testid="button-go-cart"
+                >
+                  <ShoppingCartIcon className="h-4 w-4 mr-2" />
+                  Carrito ({state.cart.length})
+                  <ArrowRightIcon className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
