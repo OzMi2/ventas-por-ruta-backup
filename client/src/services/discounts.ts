@@ -18,6 +18,8 @@ export interface DiscountRule {
   productoNombre?: string;
 }
 
+const DESCUENTOS_CACHE_KEY = "vr_offline_descuentos";
+
 function mapApiRuleToLocal(apiRule: ApiDiscountRule): DiscountRule {
   return {
     id: apiRule.id,
@@ -34,11 +36,39 @@ function mapApiRuleToLocal(apiRule: ApiDiscountRule): DiscountRule {
   };
 }
 
+function getFromCache(): DiscountRule[] {
+  try {
+    const raw = localStorage.getItem(DESCUENTOS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToCache(rules: DiscountRule[]): void {
+  try {
+    localStorage.setItem(DESCUENTOS_CACHE_KEY, JSON.stringify(rules));
+  } catch {
+    // Ignore cache errors
+  }
+}
+
 export async function fetchDiscounts(): Promise<DiscountRule[]> {
   try {
     const response = await apiClient.getDescuentos();
-    return response.rules.map(mapApiRuleToLocal);
-  } catch {
+    const rules = response.rules.map(mapApiRuleToLocal);
+    // Guardar en cache para uso offline
+    saveToCache(rules);
+    console.log(`[Descuentos] ${rules.length} reglas cargadas del servidor`);
+    return rules;
+  } catch (e) {
+    // Usar cache cuando falla el servidor
+    const cached = getFromCache();
+    if (cached.length > 0) {
+      console.log(`[Descuentos] Usando ${cached.length} reglas del cache (offline)`);
+      return cached;
+    }
+    console.warn("[Descuentos] No hay reglas en cache");
     return [];
   }
 }

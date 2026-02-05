@@ -2,8 +2,6 @@ import { apiClient } from "@/lib/api";
 import { saveBootstrapToCache } from "./offlineCache";
 import { fetchDiscounts } from "./discounts";
 
-const DESCUENTOS_CACHE_KEY = "vr_offline_descuentos";
-
 export async function precacheAllData(): Promise<{ success: boolean; errors: string[] }> {
   const errors: string[] = [];
   
@@ -16,9 +14,9 @@ export async function precacheAllData(): Promise<{ success: boolean; errors: str
   }
 
   try {
+    // fetchDiscounts ahora guarda automáticamente en cache
     const descuentos = await fetchDiscounts();
-    localStorage.setItem(DESCUENTOS_CACHE_KEY, JSON.stringify(descuentos));
-    console.log("[Precache] Descuentos cached");
+    console.log(`[Precache] ${descuentos.length} descuentos cargados`);
   } catch (e: any) {
     errors.push(`Descuentos: ${e.message}`);
   }
@@ -90,13 +88,4 @@ export async function precacheEverything(onProgress?: (step: string) => void): P
   await precacheAppAssets();
   
   onProgress?.("¡Listo para usar offline!");
-}
-
-export function getDescuentosFromCache(): any[] {
-  try {
-    const raw = localStorage.getItem(DESCUENTOS_CACHE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
 }
